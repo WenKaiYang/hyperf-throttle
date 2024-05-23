@@ -26,7 +26,6 @@ use Hyperf\Di\Exception\Exception;
 use Hyperf\Engine\Contract\Http\V2\RequestInterface;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
-
 use function Hyperf\Support\make;
 use function Hyperf\Tappable\tap;
 
@@ -41,9 +40,10 @@ class ThrottleAspect extends AbstractAspect
     protected array $config;
 
     public function __construct(
-        ConfigInterface $config,
+        ConfigInterface              $config,
         protected ContainerInterface $container
-    ) {
+    )
+    {
         $this->annotationProperty = get_object_vars(new ThrottleAnnotation());
         $this->config = $this->parseConfig($config);
     }
@@ -59,18 +59,18 @@ class ThrottleAspect extends AbstractAspect
     {
         $annotation = $this->getWeightingAnnotation($this->getAnnotations($proceedingJoinPoint));
 
-        $throttleHandlerInstance = make(
-            ThrottleHandler::class,
-            [$this->container->get(RequestInterface::class), $this->getStorageDriver()]
-        );
-        /** @var ThrottleHandler $throttleHandlerInstance */
-        $throttleHandlerInstance->handle(
-            $annotation->maxAttempts,
-            $annotation->decaySeconds,
-            $annotation->prefix,
+        make(
+            name: ThrottleHandler::class,
+            parameters: [
+                $this->container->get(RequestInterface::class),
+                $this->getStorageDriver(),
+                $proceedingJoinPoint
+            ]
+        )->handle(
+            $annotation->limit,
+            $annotation->timer,
             $annotation->key,
-            $annotation->generateKeyCallable,
-            $annotation->tooManyAttemptsCallback
+            $annotation->callback
         );
 
         return $proceedingJoinPoint->process();
@@ -82,7 +82,7 @@ class ThrottleAspect extends AbstractAspect
 
         /* @var null|ThrottleAnnotation $annotation */
         foreach ($annotations as $annotation) {
-            if (! $annotation) {
+            if (!$annotation) {
                 continue;
             }
 
@@ -120,12 +120,12 @@ class ThrottleAspect extends AbstractAspect
         $config = $this->getConfig();
 
         $driverClass = $config['storage'] ?? RedisStorage::class;
-        if (! $this->container->has($driverClass)) {
+        if (!$this->container->has($driverClass)) {
             throw new InvalidArgumentException(sprintf('The storage driver class [%s] is not exists.', $driverClass));
         }
 
         $instance = $this->container->get($driverClass);
-        if (! $instance instanceof StorageInterface) {
+        if (!$instance instanceof StorageInterface) {
             throw new InvalidArgumentException(sprintf('The storage driver class [%s] is invalid.', $driverClass));
         }
 

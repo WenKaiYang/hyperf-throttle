@@ -13,9 +13,11 @@ declare(strict_types=1);
 namespace Ella123\HyperfThrottle\Handler;
 
 use Carbon\Carbon;
+use Closure;
 use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Ella123\HyperfThrottle\Storage\StorageInterface;
 use Hyperf\Context\Context;
+use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface;
 
@@ -26,74 +28,74 @@ class ThrottleHandler
     protected string $keySuffix = ':timer';
 
     public function __construct(
-        public RequestInterface $request,
-        public StorageInterface $storage,
-    ) {
+        public RequestInterface       $request,
+        public StorageInterface       $storage,
+        protected ProceedingJoinPoint $proceedingJoinPoint
+    )
+    {
     }
 
     /**
      * 处理访问节流
      *
-     * @param int $maxAttempts 在指定时间内允许的最大请求次数
-     * @param int $decaySeconds 单位时间（s）
-     * @param string $prefix 计数器 key 前缀
-     * @param string $key 具体的计数器的 key
-     * @param mixed $generateKeyCallable 生成计数 key 的方法
-     * @param mixed $tooManyAttemptsCallback 当触发到最大请求次数时回调方法
+     * @param int $limit 在指定时间内允许的最大请求次数
+     * @param int $timer 单位时间（s）
+     * @param mixed $key 生成计数 key 的方法
+     * @param mixed $callback 当触发到最大请求次数时回调方法
      * @throws ThrottleException
      */
     public function handle(
-        int $maxAttempts = 60,
-        int $decaySeconds = 60,
-        string $prefix = '',
-        string $key = '',
-        mixed $generateKeyCallable = [],
-        mixed $tooManyAttemptsCallback = []
-    ): void {
-        $keyCounter = $this->keyPrefix($prefix) . $this->resolveRequestSignature($key, $generateKeyCallable);
+        int   $limit = 60,
+        int   $timer = 60,
+        mixed $key = null,
+        mixed $callback = null
+    ): void
+    {
+        // 计数器key
+        $keyCounter = $this->keyPrefix() . $this->keySignature($key);
 
-        $maxAttempts = max(0, $maxAttempts);
-        if ($this->tooManyAttempts($keyCounter, $maxAttempts)) {
-            $this->resolveTooManyAttempts($keyCounter, $maxAttempts, $tooManyAttemptsCallback);
+        $limit = max(1, $limit);
+        if ($this->tooManyAttempts($keyCounter, $limit)) {
+            $this->resolveTooManyAttempts($keyCounter, $limit, $callback);
         }
 
-        $this->hit($keyCounter, max(1, $decaySeconds));
+        $this->hit($keyCounter, max(1, $timer));
 
-        $this->setHeaders($keyCounter, $maxAttempts);
+        $this->setHeaders($keyCounter, $limit);
     }
 
     /**
      * 清空所有的限流器.
      */
-    public function clear(string $prefix = ''): bool
+    public function clear(): bool
     {
-        return $this->storage->clearPrefix($this->keyPrefix($prefix));
+        return $this->storage->clearPrefix($this->keyPrefix());
     }
 
     /**
      * @throws ThrottleException
      */
-    protected function resolveTooManyAttempts(string $keyCounter, int $maxAttempts, mixed $tooManyAttemptsCallback): mixed
+    protected function resolveTooManyAttempts(string $keyCounter, int $limit, mixed $callback): mixed
     {
-        if ($tooManyAttemptsCallback) {
-            return call_user_func($tooManyAttemptsCallback);
+        if ($callback) {
+            return call_user_func($callback);
         }
 
-        throw $this->buildException($keyCounter, $maxAttempts);
+        throw $this->buildException($keyCounter, $limit);
     }
 
     /**
      * 超过访问次数限制时，构建异常信息.
      *
      * @param string $keyCounter 计数器的 key
-     * @param int $maxAttempts 在指定时间内允许的最大请求次数
+     * @param int $limit 在指定时间内允许的最大请求次数
      */
-    protected function buildException(string $keyCounter, int $maxAttempts): ThrottleException
+    protected function buildException(string $keyCounter, int $limit): ThrottleException
     {
         // 距离允许下一次请求还有多少秒
         $retryAfter = $this->getTimeUntilNextRetry($keyCounter);
 
-        $this->setHeaders($keyCounter, $maxAttempts, $retryAfter);
+        $this->setHeaders($keyCounter, $limit, $retryAfter);
 
         // 429 Too Many Requests
         return new ThrottleException();
@@ -103,15 +105,15 @@ class ThrottleHandler
      * 设置返回头数据.
      *
      * @param string $keyCounter 计数器的 key
-     * @param int $maxAttempts 在指定时间内允许的最大请求次数
+     * @param int $limit 在指定时间内允许的最大请求次数
      * @param null|int $retryAfter 距离下次重试请求需要等待的时间（s）
      */
-    protected function setHeaders(string $keyCounter, int $maxAttempts, ?int $retryAfter = null): void
+    protected function setHeaders(string $keyCounter, int $limit, ?int $retryAfter = null): void
     {
         // 设置返回头数据
         $headers = $this->getHeaders(
-            $maxAttempts,
-            $this->calculateRemainingAttempts($keyCounter, $maxAttempts, $retryAfter),  // 计算剩余访问次数
+            $limit,
+            $this->calculateRemainingAttempts($keyCounter, $limit, $retryAfter),  // 计算剩余访问次数
             $retryAfter
         );
 
@@ -121,19 +123,19 @@ class ThrottleHandler
     /**
      * 获取返回头数据.
      *
-     * @param int $maxAttempts 在指定时间内允许的最大请求次数
+     * @param int $limit 在指定时间内允许的最大请求次数
      * @param int $remainingAttempts 在指定时间段内剩下的请求次数
      * @param null|int $retryAfter 距离下次重试请求需要等待的时间（s）
      * @return int[]
      */
-    protected function getHeaders(int $maxAttempts, int $remainingAttempts, ?int $retryAfter = null): array
+    protected function getHeaders(int $limit, int $remainingAttempts, ?int $retryAfter = null): array
     {
         $headers = [
-            'X-RateLimit-Limit' => $maxAttempts,  // 在指定时间内允许的最大请求次数
+            'X-RateLimit-Limit' => $limit,  // 在指定时间内允许的最大请求次数
             'X-RateLimit-Remaining' => $remainingAttempts,  // 在指定时间段内剩下的请求次数
         ];
 
-        if (! is_null($retryAfter)) {  // 只有当用户访问频次超过了最大频次之后才会返回以下两个返回头字段
+        if (!is_null($retryAfter)) {  // 只有当用户访问频次超过了最大频次之后才会返回以下两个返回头字段
             $headers['Retry-After'] = $retryAfter;  // 距离下次重试请求需要等待的时间（s）
             $headers['X-RateLimit-Reset'] = Carbon::now()->addSeconds($retryAfter)->getTimestamp();  // 距离下次重试请求需要等待的时间戳（s）
         }
@@ -159,17 +161,17 @@ class ThrottleHandler
      * 判断访问次数是否已经达到了临界值
      *
      * @param string $keyCounter 计数器的 key
-     * @param int $maxAttempts 在指定时间内允许的最大请求次数
+     * @param int $limit 在指定时间内允许的最大请求次数
      */
-    private function tooManyAttempts(string $keyCounter, int $maxAttempts): bool
+    private function tooManyAttempts(string $keyCounter, int $limit): bool
     {
-        $counterNumber = (int) $this->storage->get($keyCounter, 0);
+        $counterNumber = (int)$this->storage->get($keyCounter, 0);
 
         // 计时器不存在时，计数器则没有存在的意义
-        if (! $this->storage->has($this->keyTimer($keyCounter))) {
+        if (!$this->storage->has($this->keyTimer($keyCounter))) {
             $this->storage->forget($keyCounter);
         } else {
-            if ($counterNumber >= $maxAttempts) {
+            if ($counterNumber >= $limit) {
                 return true;
             }
         }
@@ -181,29 +183,29 @@ class ThrottleHandler
      * 在指定时间内自增指定键的计数器.
      *
      * @param string $keyCounter 计数器的 key
-     * @param int $decaySeconds 指定时间（s）
+     * @param int $timer 指定时间（s）
      */
-    private function hit(string $keyCounter, int $decaySeconds): void
+    private function hit(string $keyCounter, int $timer): void
     {
         // 计时器的有效期时间戳
-        $expirationTime = Carbon::now()->addSeconds($decaySeconds)->getTimestamp();
+        $expirationTime = Carbon::now()->addSeconds($timer)->getTimestamp();
         // 计时器
-        $this->storage->add($this->keyTimer($keyCounter), (string) $expirationTime, $decaySeconds);
+        $this->storage->add($this->keyTimer($keyCounter), (string)$expirationTime, $timer);
 
         // 计数器
-        $added = $this->storage->add($keyCounter, '0', $decaySeconds);
+        $added = $this->storage->add($keyCounter, '0', $timer);
 
         $hits = $this->storage->increment($keyCounter);
 
         if ($added && $hits == 1) {
             // 证明是初始化
-            $this->storage->put($keyCounter, '1', $decaySeconds);
+            $this->storage->put($keyCounter, '1', $timer);
         }
     }
 
-    private function keyPrefix(string $prefix): string
+    private function keyPrefix(): string
     {
-        return $prefix ?: $this->keyPrefix;
+        return $this->keyPrefix;
     }
 
     private function keyTimer(string $keyCounter): string
@@ -211,18 +213,15 @@ class ThrottleHandler
         return $keyCounter . $this->keySuffix;
     }
 
-    private function resolveRequestSignature(string $key, mixed $generateKeyCallable): string
+    private function keySignature(mixed $key): string
     {
-        if ($key) {
-            return $key;
+        if ($key instanceof Closure) {
+            return (string)call_user_func($key);
         }
+        $str = $this->proceedingJoinPoint->className;
+        $str .= '_' . $this->proceedingJoinPoint->methodName;
 
-        if ($generateKeyCallable) {
-            return (string) call_user_func($generateKeyCallable);
-        }
-
-        $sign = $this->request->url() . '|' . $this->clientIp();
-        return sha1($sign);
+        return sha1($str . '_' . $this->clientIp());
     }
 
     private function clientIp(): string
@@ -240,7 +239,7 @@ class ThrottleHandler
      */
     private function getTimeUntilNextRetry(string $keyCounter): int
     {
-        $timer = (int) $this->storage->get($this->keyTimer($keyCounter));
+        $timer = (int)$this->storage->get($this->keyTimer($keyCounter));
         $nextRetry = $timer - Carbon::now()->getTimestamp();
         return max(0, $nextRetry);
     }
@@ -249,13 +248,13 @@ class ThrottleHandler
      * 计算剩余访问次数.
      *
      * @param string $keyCounter 计数器的 key
-     * @param int $maxAttempts 在指定时间内允许的最大请求次数
+     * @param int $limit 在指定时间内允许的最大请求次数
      * @param null|int $retryAfter 距离下次重试请求需要等待的时间（s）
      */
-    private function calculateRemainingAttempts(string $keyCounter, int $maxAttempts, ?int $retryAfter = null): int
+    private function calculateRemainingAttempts(string $keyCounter, int $limit, ?int $retryAfter = null): int
     {
         if (is_null($retryAfter)) {
-            $remain = $maxAttempts - (int) $this->storage->get($keyCounter, 0);
+            $remain = $limit - (int)$this->storage->get($keyCounter, 0);
             return max(0, $remain);
         }
 

@@ -19,12 +19,11 @@ use Hyperf\Di\Annotation\AbstractAnnotation;
 class Throttle extends AbstractAnnotation
 {
     public function __construct(
-        public ?int $maxAttempts = null,
-        public ?int $decaySeconds = null,
-        public ?string $prefix = null,
-        public ?string $key = null,
-        public mixed $generateKeyCallable = null,
-        public mixed $tooManyAttemptsCallback = null
-    ) {
+        public ?int  $limit = null,
+        public ?int  $timer = null,
+        public mixed $key = null,
+        public mixed $callback = null
+    )
+    {
     }
 }
