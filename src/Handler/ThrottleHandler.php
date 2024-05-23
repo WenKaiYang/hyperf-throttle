@@ -18,8 +18,8 @@ use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Ella123\HyperfThrottle\Storage\StorageInterface;
 use Hyperf\Context\Context;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
+use Hyperf\HttpServer\Contract\RequestInterface;
+use Hyperf\HttpServer\Contract\ResponseInterface;
 use function Hyperf\Support\make;
 
 class ThrottleHandler
@@ -148,6 +148,7 @@ class ThrottleHandler
      */
     protected function addHeaders(array $headers = []): void
     {
+        /** @var ResponseInterface $response */
         $response = Context::get(ResponseInterface::class);
 
         foreach ($headers as $key => $header) {
