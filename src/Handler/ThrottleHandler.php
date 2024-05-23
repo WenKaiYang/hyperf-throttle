@@ -18,7 +18,9 @@ use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Ella123\HyperfThrottle\Storage\StorageInterface;
 use Hyperf\Context\Context;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use function Hyperf\Support\make;
 
 class ThrottleHandler
 {
@@ -27,7 +29,6 @@ class ThrottleHandler
     protected string $keySuffix = ':timer';
 
     public function __construct(
-        public RequestInterface       $request,
         public StorageInterface       $storage,
         protected ProceedingJoinPoint $proceedingJoinPoint
     )
@@ -225,9 +226,12 @@ class ThrottleHandler
 
     private function clientIp(): string
     {
-        return $this->request->getHeaderLine('X-Forwarded-For')
-            ?: $this->request->getHeaderLine('X-Real-IP')
-                ?: ($this->request->getServerParams()['remote_addr'] ?? '')
+        /** @var RequestInterface $request */
+        $request = make(RequestInterface::class);
+
+        return $request->getHeaderLine('X-Forwarded-For')
+            ?: $request->getHeaderLine('X-Real-IP')
+                ?: ($request->getServerParams()['remote_addr'] ?? '')
                     ?: '127.0.0.1';
     }
 

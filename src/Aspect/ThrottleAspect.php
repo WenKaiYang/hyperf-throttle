@@ -59,7 +59,6 @@ class ThrottleAspect extends AbstractAspect
         $annotation = $this->getWeightingAnnotation($this->getAnnotations($proceedingJoinPoint));
 
         (new ThrottleHandler(
-            request: $this->container->get(RequestInterface::class),
             storage: $this->getStorageDriver(),
             proceedingJoinPoint: $proceedingJoinPoint
         ))->handle(
