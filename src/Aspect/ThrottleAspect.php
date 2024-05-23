@@ -1,5 +1,15 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Ella123\HyperfThrottle\Aspect;
 
 use Ella123\HyperfThrottle\Annotation\Throttle as ThrottleAnnotation;
@@ -16,21 +26,22 @@ use Hyperf\Di\Exception\Exception;
 use Hyperf\Engine\Contract\Http\V2\RequestInterface;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
+
 use function Hyperf\Support\make;
 use function Hyperf\Tappable\tap;
 
 class ThrottleAspect extends AbstractAspect
 {
     public array $annotations = [
-        ThrottleAnnotation::class
+        ThrottleAnnotation::class,
     ];
+
     protected array $annotationProperty;
 
     protected array $config;
 
-
     public function __construct(
-        ConfigInterface              $config,
+        ConfigInterface $config,
         protected ContainerInterface $container
     ) {
         $this->annotationProperty = get_object_vars(new ThrottleAnnotation());
@@ -38,8 +49,6 @@ class ThrottleAspect extends AbstractAspect
     }
 
     /**
-     * @param ProceedingJoinPoint $proceedingJoinPoint
-     * @return mixed
      * @throws InvalidArgumentException
      * @throws Exception
      * @throws ContainerExceptionInterface
@@ -67,15 +76,11 @@ class ThrottleAspect extends AbstractAspect
         return $proceedingJoinPoint->process();
     }
 
-    /**
-     * @param array $annotations
-     * @return ThrottleAnnotation
-     */
     public function getWeightingAnnotation(array $annotations): ThrottleAnnotation
     {
         $property = array_merge($this->annotationProperty, $this->getConfig());
 
-        /*** @var null|ThrottleAnnotation $annotation */
+        /* @var null|ThrottleAnnotation $annotation */
         foreach ($annotations as $annotation) {
             if (! $annotation) {
                 continue;
@@ -91,42 +96,21 @@ class ThrottleAspect extends AbstractAspect
         });
     }
 
-    /**
-     * @param ProceedingJoinPoint $proceedingJoinPoint
-     * @return array
-     */
     public function getAnnotations(ProceedingJoinPoint $proceedingJoinPoint): array
     {
         $metadata = $proceedingJoinPoint->getAnnotationMetadata();  // 得到注解上的元数据
         return [
             $metadata->class[ThrottleAnnotation::class] ?? null,  // 类上面的注解元数据
-            $metadata->method[ThrottleAnnotation::class] ?? null  // 类方法上面的注解元数据
+            $metadata->method[ThrottleAnnotation::class] ?? null,  // 类方法上面的注解元数据
         ];
     }
 
-    /**
-     * @return array
-     */
     public function getConfig(): array
     {
         return $this->config;
     }
 
     /**
-     * @param ConfigInterface $config
-     * @return array
-     */
-    private function parseConfig(ConfigInterface $config): array
-    {
-        if ($config->has('throttle_requests')) {
-            return $config->get('throttle_requests');
-        }
-
-        return [];
-    }
-
-    /**
-     * @return StorageInterface
      * @throws InvalidArgumentException
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
@@ -146,5 +130,14 @@ class ThrottleAspect extends AbstractAspect
         }
 
         return $instance;
+    }
+
+    private function parseConfig(ConfigInterface $config): array
+    {
+        if ($config->has('throttle_requests')) {
+            return $config->get('throttle_requests');
+        }
+
+        return [];
     }
 }

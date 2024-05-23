@@ -1,5 +1,5 @@
-# component-creator
+# 安装依赖
 
-```
-composer create-project hyperf/component-creator
+```shell
+composer require ella123/hyperf-throttle
 ```

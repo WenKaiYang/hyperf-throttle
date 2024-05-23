@@ -1,11 +1,22 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Ella123\HyperfThrottle\Storage;
 
+use Hyperf\Redis\Redis;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
-use Hyperf\Redis\Redis;
 use Psr\Container\NotFoundExceptionInterface;
+use RedisException;
 
 class RedisStorage implements StorageInterface
 {
@@ -24,13 +35,13 @@ class RedisStorage implements StorageInterface
     }
 
     /**
-     * @throws \RedisException
+     * @throws RedisException
      */
     public function get(string $key, mixed $default = null): mixed
     {
         $value = $this->redis->get($key);
 
-        if (false === $value) {
+        if ($value === false) {
             return $default;
         }
 
@@ -38,7 +49,7 @@ class RedisStorage implements StorageInterface
     }
 
     /**
-     * @throws \RedisException
+     * @throws RedisException
      */
     public function put(string $key, string $value, ?int $ttl = null): bool
     {
@@ -50,7 +61,7 @@ class RedisStorage implements StorageInterface
     }
 
     /**
-     * @throws \RedisException
+     * @throws RedisException
      */
     public function add(string $key, string $value, ?int $ttl = null): bool
     {
@@ -62,7 +73,7 @@ class RedisStorage implements StorageInterface
     }
 
     /**
-     * @throws \RedisException
+     * @throws RedisException
      */
     public function increment(string $key, int $value = 1): int
     {
@@ -70,23 +81,23 @@ class RedisStorage implements StorageInterface
     }
 
     /**
-     * @throws \RedisException
+     * @throws RedisException
      */
     public function forget(string $key): bool
     {
-        return (bool)$this->redis->del($key);
+        return (bool) $this->redis->del($key);
     }
 
     /**
-     * @throws \RedisException
+     * @throws RedisException
      */
     public function has(string $key): bool
     {
-        return (bool)$this->redis->exists($key);
+        return (bool) $this->redis->exists($key);
     }
 
     /**
-     * @throws \RedisException
+     * @throws RedisException
      */
     public function clearPrefix(string $prefix): bool
     {
@@ -102,5 +113,4 @@ class RedisStorage implements StorageInterface
 
         return true;
     }
-
 }

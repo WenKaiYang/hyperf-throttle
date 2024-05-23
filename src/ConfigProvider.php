@@ -9,6 +9,7 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+
 namespace Ella123\HyperfThrottle;
 
 use Ella123\HyperfThrottle\Aspect\ThrottleAspect;
@@ -21,12 +22,12 @@ class ConfigProvider
     {
         return [
             'dependencies' => [
-                StorageInterface::class => RedisStorage::class
+                StorageInterface::class => RedisStorage::class,
             ],
             'commands' => [],
             'listeners' => [],
             'aspects' => [
-                ThrottleAspect::class
+                ThrottleAspect::class,
             ],
             'publish' => [
                 [
