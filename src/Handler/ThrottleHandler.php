@@ -19,7 +19,7 @@ use Ella123\HyperfThrottle\Storage\StorageInterface;
 use Hyperf\Context\Context;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\HttpServer\Contract\RequestInterface;
-use Hyperf\HttpServer\Contract\ResponseInterface;
+use Psr\Http\Message\ResponseInterface;
 use function Hyperf\Support\make;
 
 class ThrottleHandler
