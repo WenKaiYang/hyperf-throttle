@@ -23,9 +23,9 @@ use Hyperf\Contract\ContainerInterface;
 use Hyperf\Di\Aop\AbstractAspect;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\Di\Exception\Exception;
-use Hyperf\HttpServer\Contract\RequestInterface;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
+use Psr\Http\Message\RequestInterface;
 use function Hyperf\Tappable\tap;
 
 class ThrottleAspect extends AbstractAspect
