@@ -4,9 +4,11 @@
   "license": "MIT",
   "keywords": [
     "php",
-    "hyperf"
+    "hyperf",
+    "throttle",
+    "hyperf3.1"
   ],
-  "description": "",
+  "description": "hyperf throttle rate limit",
   "autoload": {
     "psr-4": {
       "Ella123\\HyperfThrottle\\": "src/"
