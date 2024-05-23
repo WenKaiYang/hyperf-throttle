@@ -23,10 +23,9 @@ use Hyperf\Contract\ContainerInterface;
 use Hyperf\Di\Aop\AbstractAspect;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\Di\Exception\Exception;
-use Hyperf\Engine\Contract\Http\V2\RequestInterface;
+use Hyperf\HttpServer\Contract\RequestInterface;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
-use function Hyperf\Support\make;
 use function Hyperf\Tappable\tap;
 
 class ThrottleAspect extends AbstractAspect
@@ -59,19 +58,17 @@ class ThrottleAspect extends AbstractAspect
     {
         $annotation = $this->getWeightingAnnotation($this->getAnnotations($proceedingJoinPoint));
 
-        make(
-            name: ThrottleHandler::class,
-            parameters: [
-                $this->container->get(RequestInterface::class),
-                $this->getStorageDriver(),
-                $proceedingJoinPoint
-            ]
-        )->handle(
-            $annotation->limit,
-            $annotation->timer,
-            $annotation->key,
-            $annotation->callback
+        (new ThrottleHandler(
+            request: $this->container->get(RequestInterface::class),
+            storage: $this->getStorageDriver(),
+            proceedingJoinPoint: $proceedingJoinPoint
+        ))->handle(
+            limit: $annotation->limit,
+            timer: $annotation->timer,
+            key: $annotation->key,
+            callback: $annotation->callback
         );
+
 
         return $proceedingJoinPoint->process();
     }
