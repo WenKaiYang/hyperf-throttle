@@ -11,20 +11,29 @@ declare(strict_types=1);
  */
 namespace Ella123\HyperfThrottle;
 
+use Ella123\HyperfThrottle\Aspect\ThrottleAspect;
+use Ella123\HyperfThrottle\Storage\RedisStorage;
+use Ella123\HyperfThrottle\Storage\StorageInterface;
+
 class ConfigProvider
 {
     public function __invoke(): array
     {
         return [
             'dependencies' => [
+                StorageInterface::class => RedisStorage::class
             ],
-            'commands' => [
+            'commands' => [],
+            'listeners' => [],
+            'aspects' => [
+                ThrottleAspect::class
             ],
-            'annotations' => [
-                'scan' => [
-                    'paths' => [
-                        __DIR__,
-                    ],
+            'publish' => [
+                [
+                    'id' => 'config',
+                    'description' => '访问速率限流器配置文件',
+                    'source' => __DIR__ . '/../publish/throttle_requests.php',
+                    'destination' => BASE_PATH . '/config/autoload/throttle_requests.php',
                 ],
             ],
         ];
