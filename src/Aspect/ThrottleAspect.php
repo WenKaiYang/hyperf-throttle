@@ -57,7 +57,10 @@ class ThrottleAspect extends AbstractAspect
     {
         $annotation = $this->getWeightingAnnotation($this->getAnnotations($proceedingJoinPoint));
 
-        $key = $proceedingJoinPoint->className . '-' . $proceedingJoinPoint->methodName;
+        $key = $proceedingJoinPoint->className;
+        if ($proceedingJoinPoint->getAnnotationMetadata()->method) {
+            $key .= '-' . $proceedingJoinPoint->methodName;
+        }
 
         make(ThrottleHandler::class)->handle(
             limit: $annotation->limit ?: $this->config['limit'],
