@@ -13,8 +13,6 @@ declare(strict_types=1);
 namespace Ella123\HyperfThrottle;
 
 use Ella123\HyperfThrottle\Aspect\ThrottleAspect;
-use Ella123\HyperfThrottle\Storage\RedisStorage;
-use Ella123\HyperfThrottle\Storage\StorageInterface;
 
 class ConfigProvider
 {
@@ -22,7 +20,6 @@ class ConfigProvider
     {
         return [
             'dependencies' => [
-                StorageInterface::class => RedisStorage::class,
             ],
             'commands' => [],
             'listeners' => [],
