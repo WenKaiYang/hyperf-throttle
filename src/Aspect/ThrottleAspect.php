@@ -24,7 +24,6 @@ use Hyperf\Di\Exception\Exception;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use RedisException;
-
 use function Hyperf\Support\make;
 use function Hyperf\Tappable\tap;
 
@@ -39,9 +38,10 @@ class ThrottleAspect extends AbstractAspect
     protected array $config;
 
     public function __construct(
-        ConfigInterface $config,
+        ConfigInterface              $config,
         protected ContainerInterface $container
-    ) {
+    )
+    {
         $this->annotationProperty = get_object_vars(new ThrottleAnnotation());
         $this->config = $this->parseConfig($config);
     }
@@ -60,8 +60,8 @@ class ThrottleAspect extends AbstractAspect
         $key = $proceedingJoinPoint->className . '-' . $proceedingJoinPoint->methodName;
 
         make(ThrottleHandler::class)->handle(
-            limit: $annotation->limit,
-            timer: $annotation->timer,
+            limit: $annotation->limit ?: $this->config['limit'],
+            timer: $annotation->timer ?: $this->config['timer'],
             key: $annotation->key ?: $key,
             callback: $annotation->callback
         );
@@ -75,7 +75,7 @@ class ThrottleAspect extends AbstractAspect
 
         /* @var null|ThrottleAnnotation $annotation */
         foreach ($annotations as $annotation) {
-            if (! $annotation) {
+            if (!$annotation) {
                 continue;
             }
 
