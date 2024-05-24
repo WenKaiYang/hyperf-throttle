@@ -70,7 +70,7 @@ class ThrottleHandler
      */
     private function tooManyAttempts(int $frequency, int $limit): bool
     {
-        return $frequency >= $limit;
+        return $frequency > $limit;
     }
 
     /**
