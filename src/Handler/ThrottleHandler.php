@@ -14,6 +14,7 @@ namespace Ella123\HyperfThrottle\Handler;
 
 use Carbon\Carbon;
 use Ella123\HyperfThrottle\Exception\ThrottleException;
+use Exception;
 use Hyperf\Context\Context;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
@@ -55,7 +56,7 @@ class ThrottleHandler
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      * @throws RedisException
-     * @throws ThrottleException
+     * @throws Exception
      */
     public function resolveTooManyAttempts(string $key, int $frequency, int $limit, mixed $callback): mixed
     {
@@ -74,7 +75,7 @@ class ThrottleHandler
     /**
      * 超过访问次数限制时，构建异常信息.
      */
-    public function buildException(?string $exception = null): ThrottleException
+    public function buildException(?string $exception = null): Exception
     {
         return $exception && class_exists($exception)
             ? make($exception)

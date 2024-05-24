@@ -12,11 +12,7 @@ declare(strict_types=1);
 
 namespace Ella123\HyperfThrottle\Exception;
 
-use Exception;
-
-class ResubmitException extends Exception
+class ResubmitException extends ThrottleException
 {
-    protected $code = 429;
-
     protected $message = 'Repeated submission.';
 }
