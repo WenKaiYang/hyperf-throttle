@@ -10,10 +10,10 @@ use Hyperf\Di\Annotation\AbstractAnnotation;
 class Resubmit extends AbstractAnnotation implements ThrottleInterface
 {
     public function __construct(
-        public int   $limit = 1,
-        public int   $timer = 60,
-        public mixed $key = null,
-        public mixed $callback = [ResubmitHandler::class, 'buildException']
+        public int               $limit = 1,
+        public int               $timer = 60,
+        public null|string|array $key = [ResubmitHandler::class, 'generateKey'],
+        public null|string|array $callback = [ResubmitHandler::class, 'exceptionCallback']
     )
     {
     }
