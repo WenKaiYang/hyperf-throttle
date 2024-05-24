@@ -24,7 +24,6 @@ use Hyperf\Di\Exception\Exception;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use RedisException;
-
 use function Hyperf\Support\make;
 
 class ThrottleAspect extends AbstractAspect
@@ -50,7 +49,8 @@ class ThrottleAspect extends AbstractAspect
             // 类上的注解
             foreach ($annotationMetadata->class as $class => $annotation) {
                 if ($annotation instanceof ThrottleInterface) {
-                    $key .= '#' . $class;
+                    // 支持不同配置多个定义
+                    $key .= '#' . $class . '#' . json_encode(get_object_vars($annotation));
                     make(ThrottleHandler::class)->handle(
                         limit: $annotation->limit,
                         timer: $annotation->timer,
@@ -65,7 +65,8 @@ class ThrottleAspect extends AbstractAspect
             // 方法上的注解
             foreach ($annotationMetadata->method as $class => $annotation) {
                 if ($annotation instanceof ThrottleInterface) {
-                    $key .= '#' . $class;
+                    // 支持不同配置多个定义
+                    $key .= '#' . $class . '#' . json_encode(get_object_vars($annotation));
                     make(ThrottleHandler::class)->handle(
                         limit: $annotation->limit,
                         timer: $annotation->timer,
