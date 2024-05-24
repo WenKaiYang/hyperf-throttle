@@ -16,17 +16,16 @@ use Attribute;
 use Hyperf\Di\Annotation\AbstractAnnotation;
 
 /**
- * 流量阀门
+ * 流量阀门.
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
 class Throttle extends AbstractAnnotation implements ThrottleInterface
 {
     public function __construct(
-        public int   $limit = 60,
-        public int   $timer = 60,
+        public int $limit = 60,
+        public int $timer = 60,
         public mixed $key = null,
         public mixed $callback = null
-    )
-    {
+    ) {
     }
 }

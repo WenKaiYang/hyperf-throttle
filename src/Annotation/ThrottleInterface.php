@@ -21,8 +21,8 @@ interface ThrottleInterface
      * @param null|array|string $callback 超频回调(支持自定义回调)
      */
     public function __construct(
-        int   $limit = 60,
-        int   $timer = 60,
+        int $limit = 60,
+        int $timer = 60,
         mixed $key = null,
         mixed $callback = null
     );
