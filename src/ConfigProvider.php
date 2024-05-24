@@ -12,6 +12,8 @@ declare(strict_types=1);
 
 namespace Ella123\HyperfThrottle;
 
+use Ella123\HyperfThrottle\Aspect\ThrottleAspect;
+
 class ConfigProvider
 {
     public function __invoke(): array
@@ -20,7 +22,9 @@ class ConfigProvider
             'dependencies' => [],
             'commands' => [],
             'listeners' => [],
-            'aspects' => [],
+            'aspects' => [
+                ThrottleAspect::class
+            ],
         ];
     }
 }

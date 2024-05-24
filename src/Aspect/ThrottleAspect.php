@@ -21,17 +21,14 @@ use Ella123\HyperfThrottle\Annotation\ThrottleInterface;
 use Ella123\HyperfThrottle\Exception\InvalidArgumentException;
 use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Ella123\HyperfThrottle\Handler\ThrottleHandler;
-use Hyperf\Di\Annotation\Aspect;
 use Hyperf\Di\Aop\AbstractAspect;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\Di\Exception\Exception;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use RedisException;
-
 use function Hyperf\Support\make;
 
-#[Aspect]
 class ThrottleAspect extends AbstractAspect
 {
     public array $annotations = [
