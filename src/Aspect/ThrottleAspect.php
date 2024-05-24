@@ -45,6 +45,19 @@ class ThrottleAspect extends AbstractAspect
         $annotationMetadata = $proceedingJoinPoint->getAnnotationMetadata();
 
         $key = $proceedingJoinPoint->className;
+        if ($annotationMetadata->class) {
+            // 类上的注解
+            foreach ($annotationMetadata->class as $annotation) {
+                if (($annotation instanceof ThrottleInterface)) {
+                    make(ThrottleHandler::class)->handle(
+                        limit: $annotation->limit,
+                        timer: $annotation->timer,
+                        key: $annotation->key ?: $key,
+                        callback: $annotation->callback
+                    );
+                }
+            }
+        }
         if ($annotationMetadata->method) {
             $key .= '@' . $proceedingJoinPoint->methodName;
             // 方法上的注解
@@ -58,20 +71,7 @@ class ThrottleAspect extends AbstractAspect
                     );
                 }
             }
-        } else {
-            // 类上的注解
-            foreach ($annotationMetadata->class as $annotation) {
-                if (($annotation instanceof ThrottleInterface)) {
-                    make(ThrottleHandler::class)->handle(
-                        limit: $annotation->limit,
-                        timer: $annotation->timer,
-                        key: $annotation->key ?: $key,
-                        callback: $annotation->callback
-                    );
-                }
-            }
         }
-
         return $proceedingJoinPoint->process();
     }
 
