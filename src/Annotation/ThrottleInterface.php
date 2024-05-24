@@ -16,14 +16,14 @@ interface ThrottleInterface
 {
     /**
      * @param int $limit 限制频次
-     * @param int $timer 时间周期（秒）
-     * @param null|array|string $key 标识Key
-     * @param null|array|string $callback 超频回调
+     * @param int $timer 时间周期（单位：s）
+     * @param null|array|string $key 标识Key(支持自定义回调)
+     * @param null|array|string $callback 超频回调(支持自定义回调)
      */
     public function __construct(
-        int $limit = 60,
-        int $timer = 60,
-        null|array|string $key = null,
-        null|array|string $callback = null
+        int   $limit = 60,
+        int   $timer = 60,
+        mixed $key = null,
+        mixed $callback = null
     );
 }

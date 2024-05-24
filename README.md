@@ -17,15 +17,48 @@ php bin/hyperf.php vendor:publish ella123/hyperf-throttle
 
 ### 配置说明
 
-| 配置       | 默认值                 | 说明                                |
-|----------|---------------------|-----------------------------------|
-| storage  | RedisStorage::class | 数据存储驱动                            |
-| limit    | 60                  | 在指定时间内允许的最大请求次数                   |
-| timer    | 60                  | 单位时间（单位：s）                        |
-| key      | null                | 默认以当前 类名（方法）+ IP                  | 
-| callback | null                | 异常回调方法（默认会抛出 `ThrottleException`） |
+| 配置       | 默认值  | 说明             |
+|----------|------|----------------|
+| limit    | 60   | 限制频次           |
+| timer    | 60   | 时间周期（单位：s）     |
+| key      | null | 标识Key(支持自定义回调) | 
+| callback | null | 超频回调(支持自定义回调)  |
 
 ### 使用实例
 
+```php
+/**
+ * 频率限制
+ */
+#[\Ella123\HyperfThrottle\Annotation\Throttle(limit: 60,timer: 60)]
+class A {
+    #[\Ella123\HyperfThrottle\Annotation\Throttle(limit: 60,timer: 60)] 
+    public function name() {
+    }
+}
 
+/**
+ * 重复提交
+ */
+#[\Ella123\HyperfThrottle\Annotation\Resubmit(limit: 1,timer: 60)]
+class B {
+    #[\Ella123\HyperfThrottle\Annotation\Resubmit(limit: 1,timer: 60)]
+    public function submit() {
+    }
+}
+
+/**
+ * 短信限制(支持定义不同规则)
+ */
+#[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 1,timer: 60)]
+#[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 5,timer: 3600)]
+#[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 15,timer: 86400)]
+class C {
+    #[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 1,timer: 60)]
+    #[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 5,timer: 3600)]
+    #[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 15,timer: 86400)]
+    public function () {
+    }
+}
+```
 
