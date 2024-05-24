@@ -26,14 +26,13 @@ class SmsLimit extends AbstractAnnotation implements ThrottleInterface
      * SmsLimit(limit:1,timer:60) 1条/分钟
      * SmsLimit(limit:5,timer:3600) 5条/小时
      * SmsLimit(limit:15,timer:86400) 15条/天.
-     * @param null|mixed $key
-     * @param null|mixed $callback
      */
     public function __construct(
-        public int $limit = 1,
-        public int $timer = 60,
+        public int   $limit = 1,
+        public int   $timer = 60,
         public mixed $key = [SmsLimitHandler::class, 'generateKey'],
         public mixed $callback = [SmsLimitHandler::class, 'exceptionCallback'],
-    ) {
+    )
+    {
     }
 }

@@ -13,7 +13,7 @@ declare(strict_types=1);
 namespace Ella123\HyperfThrottle\Aspect;
 
 use Ella123\HyperfThrottle\Annotation\Resubmit as ResubmitAnnotation;
-use Ella123\HyperfThrottle\Annotation\Resubmit as SmsLimitAnnotation;
+use Ella123\HyperfThrottle\Annotation\SmsLimit as SmsLimitAnnotation;
 use Ella123\HyperfThrottle\Annotation\Throttle as ThrottleAnnotation;
 use Ella123\HyperfThrottle\Annotation\ThrottleInterface;
 use Ella123\HyperfThrottle\Exception\InvalidArgumentException;
@@ -25,7 +25,6 @@ use Hyperf\Di\Exception\Exception;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use RedisException;
-
 use function Hyperf\Support\make;
 
 class ThrottleAspect extends AbstractAspect
