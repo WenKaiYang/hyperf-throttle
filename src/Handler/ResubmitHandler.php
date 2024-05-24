@@ -12,7 +12,6 @@ declare(strict_types=1);
 
 namespace Ella123\HyperfThrottle\Handler;
 
-use Ella123\HyperfThrottle\Exception\ResubmitException;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 
@@ -20,15 +19,6 @@ use function Ella123\HyperfUtils\request;
 
 class ResubmitHandler
 {
-    /**
-     * 异常回调.
-     * @throws ResubmitException
-     */
-    public static function exceptionCallback()
-    {
-        throw new ResubmitException();
-    }
-
     /**
      * 生成 Key.
      * @throws ContainerExceptionInterface

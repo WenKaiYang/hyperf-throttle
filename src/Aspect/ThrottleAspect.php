@@ -13,12 +13,15 @@ declare(strict_types=1);
 namespace Ella123\HyperfThrottle\Aspect;
 
 use Ella123\HyperfThrottle\Annotation\Resubmit as ResubmitAnnotation;
-use Ella123\HyperfThrottle\Annotation\SmsLimit as SmsLimitAnnotation;
+use Ella123\HyperfThrottle\Annotation\SmsDayLimit as SmsMinuteDayAnnotation;
+use Ella123\HyperfThrottle\Annotation\SmsHourLimit as SmsHourLimitAnnotation;
+use Ella123\HyperfThrottle\Annotation\SmsMinuteLimit as SmsMinuteLimitAnnotation;
 use Ella123\HyperfThrottle\Annotation\Throttle as ThrottleAnnotation;
 use Ella123\HyperfThrottle\Annotation\ThrottleInterface;
 use Ella123\HyperfThrottle\Exception\InvalidArgumentException;
 use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Ella123\HyperfThrottle\Handler\ThrottleHandler;
+use Hyperf\Di\Annotation\Aspect;
 use Hyperf\Di\Aop\AbstractAspect;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\Di\Exception\Exception;
@@ -28,12 +31,15 @@ use RedisException;
 
 use function Hyperf\Support\make;
 
+#[Aspect]
 class ThrottleAspect extends AbstractAspect
 {
     public array $annotations = [
-        ResubmitAnnotation::class,
-        SmsLimitAnnotation::class,
         ThrottleAnnotation::class,
+        ResubmitAnnotation::class,
+        SmsMinuteDayAnnotation::class,
+        SmsHourLimitAnnotation::class,
+        SmsMinuteLimitAnnotation::class,
     ];
 
     /**
@@ -45,16 +51,17 @@ class ThrottleAspect extends AbstractAspect
      */
     public function process(ProceedingJoinPoint $proceedingJoinPoint): mixed
     {
-        $annotationMetadata = $proceedingJoinPoint->getAnnotationMetadata();
+        $metadata = $proceedingJoinPoint->getAnnotationMetadata();
 
+        /** @var ThrottleHandler $handler */
+        $handler = make(ThrottleHandler::class);
         $key = $proceedingJoinPoint->className;
-        if ($annotationMetadata->class) {
-            // 类上的注解
-            foreach ($annotationMetadata->class as $class => $annotation) {
+        if ($metadata->class) {
+            // class 上的注解
+            foreach ($metadata->class as $class => $annotation) {
                 if ($annotation instanceof ThrottleInterface) {
-                    // 支持不同配置多个定义
-                    $key .= '#' . $class . '#' . json_encode(get_object_vars($annotation));
-                    make(ThrottleHandler::class)->handle(
+                    $key .= '#' . $class;
+                    $handler->execute(
                         limit: $annotation->limit,
                         timer: $annotation->timer,
                         key: $annotation->key ?: $key,
@@ -63,14 +70,13 @@ class ThrottleAspect extends AbstractAspect
                 }
             }
         }
-        if ($annotationMetadata->method) {
+        if ($metadata->method) {
             $key .= '@' . $proceedingJoinPoint->methodName;
-            // 方法上的注解
-            foreach ($annotationMetadata->method as $class => $annotation) {
+            // method 上的注解
+            foreach ($metadata->method as $class => $annotation) {
                 if ($annotation instanceof ThrottleInterface) {
-                    // 支持不同配置多个定义
-                    $key .= '#' . $class . '#' . json_encode(get_object_vars($annotation));
-                    make(ThrottleHandler::class)->handle(
+                    $key .= '#' . $class;
+                    $handler->execute(
                         limit: $annotation->limit,
                         timer: $annotation->timer,
                         key: $annotation->key ?: $key,
@@ -79,6 +85,7 @@ class ThrottleAspect extends AbstractAspect
                 }
             }
         }
+
         return $proceedingJoinPoint->process();
     }
 }

@@ -14,4 +14,7 @@ namespace Ella123\HyperfThrottle\Exception;
 
 class InvalidArgumentException extends \InvalidArgumentException
 {
+    protected $code = 422;
+
+    protected $message = 'Invalid Argument.';
 }

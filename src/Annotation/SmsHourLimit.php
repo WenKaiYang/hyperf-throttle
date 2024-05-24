@@ -13,19 +13,23 @@ declare(strict_types=1);
 namespace Ella123\HyperfThrottle\Annotation;
 
 use Attribute;
+use Ella123\HyperfThrottle\Handler\SmsLimitHandler;
 use Hyperf\Di\Annotation\AbstractAnnotation;
 
 /**
- * 流量阀门.
+ * 短信小时限制.
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
-class Throttle extends AbstractAnnotation implements ThrottleInterface
+class SmsHourLimit extends AbstractAnnotation implements ThrottleInterface
 {
+    /**
+     * SmsHourLimit(limit:5,timer:3600) 5条/小时.
+     */
     public function __construct(
-        public int $limit = 60,
-        public int $timer = 60,
-        public mixed $key = null,
-        public mixed $callback = null
+        public int $limit = 5,
+        public int $timer = 3600,
+        public mixed $key = [SmsLimitHandler::class, 'generateKey'],
+        public mixed $callback = [[SmsLimitHandler::class, 'exceptionCallback'], 'SMS hour limit.'],
     ) {
     }
 }

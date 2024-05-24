@@ -24,7 +24,6 @@ composer require ella123/hyperf-throttle
 
 * 支持类
 * 支持方法
-* 支持同时，不同配置共同启效
 
 ```php
 /**
@@ -50,13 +49,13 @@ class B {
 /**
  * 短信限制(支持定义不同规则)
  */
-#[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 1,timer: 60)]
-#[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 5,timer: 3600)]
-#[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 15,timer: 86400)]
+#[\Ella123\HyperfThrottle\Annotation\SmsMinuteLimit(limit: 1,timer: 60)]
+#[\Ella123\HyperfThrottle\Annotation\SmsHourLimit(limit: 5,timer: 3600)]
+#[\Ella123\HyperfThrottle\Annotation\SmsDayLimit(limit: 15,timer: 86400)]
 class C {
-    #[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 1,timer: 60)]
-    #[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 5,timer: 3600)]
-    #[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 15,timer: 86400)]
+    #[\Ella123\HyperfThrottle\Annotation\SmsMinuteLimit(limit: 1,timer: 60)]
+    #[\Ella123\HyperfThrottle\Annotation\SmsHourLimit(limit: 5,timer: 3600)]
+    #[\Ella123\HyperfThrottle\Annotation\SmsDayLimit(limit: 15,timer: 86400)]
     public function send() {
     }
 }
