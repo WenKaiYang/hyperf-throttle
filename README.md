@@ -57,7 +57,7 @@ class C {
     #[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 1,timer: 60)]
     #[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 5,timer: 3600)]
     #[\Ella123\HyperfThrottle\Annotation\SmsLimit(limit: 15,timer: 86400)]
-    public function () {
+    public function send() {
     }
 }
 ```
