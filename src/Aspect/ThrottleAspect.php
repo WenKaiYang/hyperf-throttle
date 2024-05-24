@@ -12,12 +12,12 @@ declare(strict_types=1);
 
 namespace Ella123\HyperfThrottle\Aspect;
 
+use Ella123\HyperfThrottle\Annotation\Resubmit as ResubmitAnnotation;
 use Ella123\HyperfThrottle\Annotation\Throttle as ThrottleAnnotation;
+use Ella123\HyperfThrottle\Annotation\ThrottleInterface;
 use Ella123\HyperfThrottle\Exception\InvalidArgumentException;
 use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Ella123\HyperfThrottle\Handler\ThrottleHandler;
-use Hyperf\Contract\ConfigInterface;
-use Hyperf\Contract\ContainerInterface;
 use Hyperf\Di\Aop\AbstractAspect;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\Di\Exception\Exception;
@@ -25,26 +25,13 @@ use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use RedisException;
 use function Hyperf\Support\make;
-use function Hyperf\Tappable\tap;
 
 class ThrottleAspect extends AbstractAspect
 {
     public array $annotations = [
+        ResubmitAnnotation::class,
         ThrottleAnnotation::class,
     ];
-
-    protected array $annotationProperty;
-
-    protected array $config;
-
-    public function __construct(
-        ConfigInterface              $config,
-        protected ContainerInterface $container
-    )
-    {
-        $this->annotationProperty = get_object_vars(new ThrottleAnnotation());
-        $this->config = $this->parseConfig($config);
-    }
 
     /**
      * @throws InvalidArgumentException
@@ -55,68 +42,36 @@ class ThrottleAspect extends AbstractAspect
      */
     public function process(ProceedingJoinPoint $proceedingJoinPoint): mixed
     {
-        $annotation = $this->getWeightingAnnotation($this->getAnnotations($proceedingJoinPoint));
+        $annotationMetadata = $proceedingJoinPoint->getAnnotationMetadata();
 
         $key = $proceedingJoinPoint->className;
-        if ($proceedingJoinPoint->getAnnotationMetadata()->method) {
-            $key .= '-' . $proceedingJoinPoint->methodName;
+        if ($annotationMetadata->method) {
+            $key .= '@' . $proceedingJoinPoint->methodName;
         }
-
-        make(ThrottleHandler::class)->handle(
-            limit: $annotation->limit ?: $this->config['limit'],
-            timer: $annotation->timer ?: $this->config['timer'],
-            key: $annotation->key ?: $key,
-            callback: $annotation->callback
-        );
+        // 类上的注解
+        foreach ($annotationMetadata->class as $class => $annotation) {
+            if (($class instanceof ThrottleInterface)) {
+                make(ThrottleHandler::class)->handle(
+                    limit: $annotation->limit,
+                    timer: $annotation->timer,
+                    key: $annotation->key ?: $key,
+                    callback: $annotation->callback
+                );
+            }
+        }
+        // 方法上的注解
+        foreach ($annotationMetadata->method as $class => $annotation) {
+            if (($class instanceof ThrottleInterface)) {
+                make(ThrottleHandler::class)->handle(
+                    limit: $annotation->limit,
+                    timer: $annotation->timer,
+                    key: $annotation->key ?: $key,
+                    callback: $annotation->callback
+                );
+            }
+        }
 
         return $proceedingJoinPoint->process();
     }
 
-    public function getWeightingAnnotation(array $annotations): ThrottleAnnotation
-    {
-        $property = array_merge($this->annotationProperty, $this->getConfig());
-
-        /* @var null|ThrottleAnnotation $annotation */
-        foreach ($annotations as $annotation) {
-            if (!$annotation) {
-                continue;
-            }
-
-            $property = array_merge($property, array_filter(get_object_vars($annotation)));
-        }
-
-        return tap(new ThrottleAnnotation(), static function (ThrottleAnnotation $ThrottleAnnotation) use ($property) {
-            foreach ($property as $k => $v) {
-                $ThrottleAnnotation->{$k} = $v;
-            }
-        });
-    }
-
-    public function getAnnotations(ProceedingJoinPoint $proceedingJoinPoint): array
-    {
-        $metadata = $proceedingJoinPoint->getAnnotationMetadata();  // 得到注解上的元数据
-        return [
-            $metadata->class[ThrottleAnnotation::class] ?? null,  // 类上面的注解元数据
-            $metadata->method[ThrottleAnnotation::class] ?? null,  // 类方法上面的注解元数据
-        ];
-    }
-
-    public function getConfig(): array
-    {
-        return $this->config;
-    }
-
-    private function parseConfig(ConfigInterface $config): array
-    {
-        if ($config->has('throttle')) {
-            return $config->get('throttle');
-        }
-
-        return [
-            'limit' => 60,  // 单位时间内的允许频次
-            'timer' => 60,  // 单位时间（单位：s）
-            'key' => null,  // 具体的计数器的 key
-            'callback' => null,  // 当触发最大频次的回调方法
-        ];
-    }
 }

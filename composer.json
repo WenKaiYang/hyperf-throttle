@@ -21,6 +21,7 @@
   },
   "require": {
     "php": ">=8.1",
+    "ext-redis": "*",
     "ella123/hyperf-utils": "^3.1",
     "hyperf/contract": "3.1.*",
     "hyperf/di": "3.1.*",
