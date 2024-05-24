@@ -23,7 +23,7 @@ class ConfigProvider
             'commands' => [],
             'listeners' => [],
             'aspects' => [
-                ThrottleAspect::class
+                ThrottleAspect::class,
             ],
         ];
     }
