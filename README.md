@@ -20,9 +20,11 @@ composer require ella123/hyperf-throttle
 
 ### 使用实例
 
+--- 
+
 * 支持类
 * 支持方法
-* 支持不同配置
+* 支持同时，不同配置共同启效
 
 ```php
 /**
