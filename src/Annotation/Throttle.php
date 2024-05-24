@@ -18,7 +18,7 @@ use Hyperf\Di\Annotation\AbstractAnnotation;
 /**
  * 流量阀门.
  */
-#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
 class Throttle extends AbstractAnnotation implements ThrottleInterface
 {
     public function __construct(

@@ -17,9 +17,9 @@ use Ella123\HyperfThrottle\Handler\SmsLimitHandler;
 use Hyperf\Di\Annotation\AbstractAnnotation;
 
 /**
- * 发送短信限制.
+ * 短信发送限制.
  */
-#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
 class SmsLimit extends AbstractAnnotation implements ThrottleInterface
 {
     /**

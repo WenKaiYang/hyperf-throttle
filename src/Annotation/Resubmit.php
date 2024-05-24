@@ -19,7 +19,7 @@ use Hyperf\Di\Annotation\AbstractAnnotation;
 /**
  * 重复提交限制.
  */
-#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
 class Resubmit extends AbstractAnnotation implements ThrottleInterface
 {
     public function __construct(
