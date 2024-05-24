@@ -47,27 +47,28 @@ class ThrottleAspect extends AbstractAspect
         $key = $proceedingJoinPoint->className;
         if ($annotationMetadata->method) {
             $key .= '@' . $proceedingJoinPoint->methodName;
-        }
-        // 类上的注解
-        foreach ($annotationMetadata->class as $class => $annotation) {
-            if (($class instanceof ThrottleInterface)) {
-                make(ThrottleHandler::class)->handle(
-                    limit: $annotation->limit,
-                    timer: $annotation->timer,
-                    key: $annotation->key ?: $key,
-                    callback: $annotation->callback
-                );
+            // 方法上的注解
+            foreach ($annotationMetadata->method as $class => $annotation) {
+                if (($class instanceof ThrottleInterface)) {
+                    make(ThrottleHandler::class)->handle(
+                        limit: $annotation->limit,
+                        timer: $annotation->timer,
+                        key: $annotation->key ?: $key,
+                        callback: $annotation->callback
+                    );
+                }
             }
-        }
-        // 方法上的注解
-        foreach ($annotationMetadata->method as $class => $annotation) {
-            if (($class instanceof ThrottleInterface)) {
-                make(ThrottleHandler::class)->handle(
-                    limit: $annotation->limit,
-                    timer: $annotation->timer,
-                    key: $annotation->key ?: $key,
-                    callback: $annotation->callback
-                );
+        } else {
+            // 类上的注解
+            foreach ($annotationMetadata->class as $class => $annotation) {
+                if (($class instanceof ThrottleInterface)) {
+                    make(ThrottleHandler::class)->handle(
+                        limit: $annotation->limit,
+                        timer: $annotation->timer,
+                        key: $annotation->key ?: $key,
+                        callback: $annotation->callback
+                    );
+                }
             }
         }
 
