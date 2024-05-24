@@ -15,7 +15,6 @@ namespace Ella123\HyperfThrottle\Handler;
 use Ella123\HyperfThrottle\Exception\ResubmitException;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
-
 use function Ella123\HyperfUtils\request;
 
 class ResubmitHandler
@@ -23,7 +22,7 @@ class ResubmitHandler
     /**
      * 异常回调.
      */
-    public function exceptionCallback(): ResubmitException
+    public static function exceptionCallback(): ResubmitException
     {
         // 429 Repeated submission
         return new ResubmitException();
@@ -34,7 +33,7 @@ class ResubmitHandler
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
-    public function generateKey(): string
+    public static function generateKey(): string
     {
         return md5(json_encode(request()->post() + request()->query()));
     }
