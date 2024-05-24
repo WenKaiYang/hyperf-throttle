@@ -9,12 +9,6 @@
 composer require ella123/hyperf-throttle
 ```
 
-### 发布配置
-
-```shell
-php bin/hyperf.php vendor:publish ella123/hyperf-throttle
-```
-
 ### 配置说明
 
 | 配置       | 默认值  | 说明             |
@@ -25,6 +19,10 @@ php bin/hyperf.php vendor:publish ella123/hyperf-throttle
 | callback | null | 超频回调(支持自定义回调)  |
 
 ### 使用实例
+
+* 支持类
+* 支持方法
+* 支持不同配置
 
 ```php
 /**
