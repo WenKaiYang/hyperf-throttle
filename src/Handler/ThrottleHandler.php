@@ -242,7 +242,6 @@ class ThrottleHandler
      * @throws NotFoundExceptionInterface
      * @throws RedisException
      * @throws ContainerExceptionInterface
-     * @throws ThrottleException
      */
     public function execute(
         int $limit = 60,
