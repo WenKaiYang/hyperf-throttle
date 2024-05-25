@@ -15,17 +15,31 @@ namespace Ella123\HyperfThrottle\Handler;
 use Ella123\HyperfThrottle\Exception\SmsLimitException;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
-
 use function Ella123\HyperfUtils\input;
 use function Ella123\HyperfUtils\request;
 
 class SmsLimitHandler
 {
     /**
-     * 异常回调.
      * @throws SmsLimitException
      */
-    public static function exceptionCallback(string $message = 'SMS sending limit.'): void
+    public static function exceptionSmsMinuteCallback(string $message = 'SMS minute limit.'): void
+    {
+        throw new SmsLimitException(message: $message);
+    }
+
+    /**
+     * @throws SmsLimitException
+     */
+    public static function exceptionSmsHourCallback(string $message = 'SMS hour limit.'): void
+    {
+        throw new SmsLimitException(message: $message);
+    }
+
+    /**
+     * @throws SmsLimitException
+     */
+    public static function exceptionSmsDayCallback(string $message = 'SMS day limit.'): void
     {
         throw new SmsLimitException(message: $message);
     }
@@ -40,6 +54,6 @@ class SmsLimitHandler
         return md5(string: input('phone')
             ?: input('mobile')
                 ?: input('tell')
-                    ?: (string) json_encode(request()->all()));
+                    ?: (string)json_encode(request()->all()));
     }
 }
