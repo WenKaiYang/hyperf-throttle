@@ -19,7 +19,6 @@ use Ella123\HyperfThrottle\Annotation\SmsMinuteLimit as SmsMinuteLimitAnnotation
 use Ella123\HyperfThrottle\Annotation\Throttle as ThrottleAnnotation;
 use Ella123\HyperfThrottle\Annotation\ThrottleInterface;
 use Ella123\HyperfThrottle\Exception\InvalidArgumentException;
-use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Ella123\HyperfThrottle\Handler\ThrottleHandler;
 use Hyperf\Di\Aop\AbstractAspect;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
@@ -45,7 +44,7 @@ class ThrottleAspect extends AbstractAspect
      * @throws Exception
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
-     * @throws RedisException|ThrottleException
+     * @throws RedisException
      */
     public function process(ProceedingJoinPoint $proceedingJoinPoint): mixed
     {
