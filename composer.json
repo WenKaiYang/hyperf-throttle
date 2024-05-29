@@ -24,8 +24,8 @@
     "hyperf/contract": "2.2.*",
     "hyperf/di": "2.2.*",
     "hyperf/framework": "2.2.*",
-    "hyperf/http-server": "^2.2",
-    "hyperf/redis": "^2.2",
+    "hyperf/http-server": "2.2.*",
+    "hyperf/redis": "2.2.*",
     "nesbot/carbon": "^3.0|^2.0",
     "psr/simple-cache": "^3.0"
   },
