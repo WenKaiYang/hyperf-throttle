@@ -16,13 +16,14 @@ use Carbon\Carbon;
 use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Exception;
 use Hyperf\Context\Context;
+use Hyperf\HttpServer\Contract\RequestInterface;
+use Hyperf\Redis\RedisFactory;
+use Hyperf\Redis\RedisProxy;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use RedisException;
 
-use function Ella123\HyperfUtils\realIp;
-use function Ella123\HyperfUtils\redis;
 use function Hyperf\Support\make;
 
 class ThrottleHandler
@@ -31,11 +32,17 @@ class ThrottleHandler
 
     protected string $keySuffix = ':timer';
 
+    private RedisProxy $redis;
+
+    public function __construct(RedisFactory $factory)
+    {
+        $this->redis = $factory->get('default');
+    }
+
     /**
      * 清空所有的限流器.
      *
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface|RedisException
+     * @throws RedisException
      */
     public function clear(): bool
     {
@@ -43,43 +50,110 @@ class ThrottleHandler
         $key = $this->getPrefix() . '*';
 
         while ($iterator !== 0) {
-            $keys = redis()->scan($iterator, $key, 10000);
+            $keys = $this->redis->scan($iterator, $key, 10000);
             if ($keys) {
-                redis()->del(...$keys);
+                $this->redis->del(...$keys);
             }
         }
 
         return true;
     }
 
-    /**
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
-     * @throws RedisException
-     * @throws Exception
-     */
-    public function resolveTooManyAttempts(string $key, int $frequency, int $limit, mixed $callback): mixed
+    public function getPrefix(): string
     {
-        // 距离允许下一次请求还有多少秒
-        $retry = $this->getTimeUntilNextRetry(key: $key);
-
-        $this->setHeaders($frequency, $limit, $retry);
-
-        if (is_array($callback)) {
-            return call_user_func($callback);
-        }
-
-        throw $this->buildException(exception: $callback);
+        return $this->keyPrefix;
     }
 
     /**
-     * 超过访问次数限制时，构建异常信息.
+     * @throws NotFoundExceptionInterface
+     * @throws RedisException
+     * @throws ContainerExceptionInterface
      */
-    public function buildException(?string $exception = null): Exception
+    public function execute(
+        int $limit = 60,
+        int $timer = 60,
+        mixed $key = null,
+        mixed $callback = null
+    ): void {
+        // 获取Key
+        $key = $this->getKey($key);
+        // 限制频次
+        $limit = $this->getLimit(limit: $limit);
+        // 当前频次
+        $frequency = $this->frequency($key, $this->getTimer($timer));
+        // 检查频次
+        if ($this->setHeaders($frequency, $limit)
+            ->tooManyAttempts($frequency, $limit)) {
+            $this->resolveTooManyAttempts($key, $frequency, $limit, $callback);
+        }
+    }
+
+    /**
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     */
+    public function getKey(mixed $key): string
     {
-        return $exception && class_exists($exception)
-            ? make($exception)
-            : new ThrottleException();
+        return $this->keyPrefix . $this->getSignature($key);
+    }
+
+    /**
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     */
+    public function getSignature(mixed $key): string
+    {
+        if (is_array($key)) {
+            return (string) call_user_func($key);
+        }
+        return sha1($key . '_' . $this->getRealIp());
+    }
+
+    public function getRealIp(mixed $request = null): string
+    {
+        $request = $request ?? Context::getOrSet(RequestInterface::class, make(RequestInterface::class));
+        /** @var RequestInterface $request */
+        return $request->getHeaderLine('X-Forwarded-For')
+            ?: $request->getHeaderLine('X-Real-IP')
+                ?: ($request->getServerParams()['remote_addr'] ?? '')
+                    ?: '127.0.0.1';
+    }
+
+    public function getLimit(int $limit)
+    {
+        return max(1, $limit);
+    }
+
+    /**
+     * 在指定时间内自增指定键的计数器.
+     *
+     * @param string $key 计数器的 key
+     * @param int $timer 指定时间（s）
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     * @throws RedisException
+     */
+    public function frequency(string $key, int $timer): int
+    {
+        if (! $this->redis->get($key)) {
+            $this->redis->setex($key, $timer, 0);
+        }
+        return (int) $this->redis->incr($key);
+    }
+
+    public function getTimer($timer)
+    {
+        return max(1, $timer);
+    }
+
+    /**
+     * 判断访问次数是否已经达到了临界值
+     *
+     * @param int $limit 在指定时间内允许的最大请求次数
+     */
+    public function tooManyAttempts(int $frequency, int $limit): bool
+    {
+        return $frequency > $limit;
     }
 
     /**
@@ -126,6 +200,21 @@ class ThrottleHandler
     }
 
     /**
+     * 计算剩余访问次数.
+     *
+     * @param int $limit 在指定时间内允许的最大请求次数
+     * @param null|int $retry 距离下次重试请求需要等待的时间（s）
+     */
+    public function calculateRemain(int $frequency, int $limit, ?int $retry = null): int
+    {
+        if (is_null($retry)) {
+            return max(0, $limit - $frequency);
+        }
+
+        return 0;
+    }
+
+    /**
      * 添加返回头信息.
      */
     public function addHeaders(array $headers = []): static
@@ -142,40 +231,23 @@ class ThrottleHandler
     }
 
     /**
-     * 判断访问次数是否已经达到了临界值
-     *
-     * @param int $limit 在指定时间内允许的最大请求次数
-     */
-    public function tooManyAttempts(int $frequency, int $limit): bool
-    {
-        return $frequency > $limit;
-    }
-
-    /**
-     * 在指定时间内自增指定键的计数器.
-     *
-     * @param string $key 计数器的 key
-     * @param int $timer 指定时间（s）
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      * @throws RedisException
+     * @throws Exception
      */
-    public function frequency(string $key, int $timer): int
+    public function resolveTooManyAttempts(string $key, int $frequency, int $limit, mixed $callback): mixed
     {
-        if (! redis()->get($key)) {
-            redis()->setex($key, $timer, 0);
+        // 距离允许下一次请求还有多少秒
+        $retry = $this->getTimeUntilNextRetry(key: $key);
+
+        $this->setHeaders($frequency, $limit, $retry);
+
+        if (is_array($callback)) {
+            return call_user_func($callback);
         }
-        return (int) redis()->incr($key);
-    }
 
-    public function getPrefix(): string
-    {
-        return $this->keyPrefix;
-    }
-
-    public function getKeyTimer(string $key): string
-    {
-        return $key . $this->keySuffix;
+        throw $this->buildException(exception: $callback);
     }
 
     /**
@@ -188,77 +260,22 @@ class ThrottleHandler
      */
     public function getTimeUntilNextRetry(string $key): int
     {
-        $timer = (int) redis()->get($this->getKeyTimer($key));
+        $timer = (int) $this->redis->get($this->getKeyTimer($key));
         return max(0, $timer - Carbon::now()->getTimestamp());
     }
 
-    /**
-     * 计算剩余访问次数.
-     *
-     * @param int $limit 在指定时间内允许的最大请求次数
-     * @param null|int $retry 距离下次重试请求需要等待的时间（s）
-     */
-    public function calculateRemain(int $frequency, int $limit, ?int $retry = null): int
+    public function getKeyTimer(string $key): string
     {
-        if (is_null($retry)) {
-            return max(0, $limit - $frequency);
-        }
-
-        return 0;
+        return $key . $this->keySuffix;
     }
 
     /**
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
+     * 超过访问次数限制时，构建异常信息.
      */
-    public function getKey(mixed $key): string
+    public function buildException(?string $exception = null): Exception
     {
-        return $this->keyPrefix . $this->getSignature($key);
-    }
-
-    /**
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
-     */
-    public function getSignature(mixed $key): string
-    {
-        if (is_array($key)) {
-            return (string) call_user_func($key);
-        }
-        return sha1($key . '_' . realIp());
-    }
-
-    public function getLimit(int $limit)
-    {
-        return max(1, $limit);
-    }
-
-    public function getTimer($timer)
-    {
-        return max(1, $timer);
-    }
-
-    /**
-     * @throws NotFoundExceptionInterface
-     * @throws RedisException
-     * @throws ContainerExceptionInterface
-     */
-    public function execute(
-        int $limit = 60,
-        int $timer = 60,
-        mixed $key = null,
-        mixed $callback = null
-    ): void {
-        // 获取Key
-        $key = $this->getKey($key);
-        // 限制频次
-        $limit = $this->getLimit(limit: $limit);
-        // 当前频次
-        $frequency = $this->frequency($key, $this->getTimer($timer));
-        // 检查频次
-        if ($this->setHeaders($frequency, $limit)
-            ->tooManyAttempts($frequency, $limit)) {
-            $this->resolveTooManyAttempts($key, $frequency, $limit, $callback);
-        }
+        return $exception && class_exists($exception)
+            ? make($exception)
+            : new ThrottleException();
     }
 }

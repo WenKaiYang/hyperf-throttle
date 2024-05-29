@@ -13,11 +13,9 @@ declare(strict_types=1);
 namespace Ella123\HyperfThrottle\Handler;
 
 use Ella123\HyperfThrottle\Exception\SmsLimitException;
-use Psr\Container\ContainerExceptionInterface;
-use Psr\Container\NotFoundExceptionInterface;
-
-use function Ella123\HyperfUtils\input;
-use function Ella123\HyperfUtils\request;
+use Hyperf\Context\Context;
+use Hyperf\HttpServer\Contract\RequestInterface;
+use RuntimeException;
 
 class SmsLimitHandler
 {
@@ -47,14 +45,16 @@ class SmsLimitHandler
 
     /**
      * 生成 Key.
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
      */
     public static function generateKey(): string
     {
-        return md5(string: input('phone')
-            ?: input('mobile')
-                ?: input('tell')
-                    ?: (string) json_encode(request()->all()));
+        $request = Context::get(RequestInterface::class);
+        if (! $request) {
+            throw new RuntimeException('No request context');
+        }
+        return md5(string: $request->input('phone')
+            ?: $request->input('mobile')
+                ?: $request->input('tell')
+                    ?: (string) json_encode($request->all()));
     }
 }

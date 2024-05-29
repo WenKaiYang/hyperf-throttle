@@ -12,20 +12,21 @@ declare(strict_types=1);
 
 namespace Ella123\HyperfThrottle\Handler;
 
-use Psr\Container\ContainerExceptionInterface;
-use Psr\Container\NotFoundExceptionInterface;
-
-use function Ella123\HyperfUtils\request;
+use Hyperf\Context\Context;
+use Hyperf\HttpServer\Contract\RequestInterface;
+use RuntimeException;
 
 class ResubmitHandler
 {
     /**
      * 生成 Key.
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
      */
     public static function generateKey(): string
     {
-        return md5(json_encode(request()->post() + request()->query()));
+        $request = Context::get(RequestInterface::class);
+        if (! $request) {
+            throw new RuntimeException('No request context');
+        }
+        return md5(json_encode($request->post() + $request->query()));
     }
 }
