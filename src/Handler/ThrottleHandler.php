@@ -23,8 +23,7 @@ use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use RedisException;
-
-use function Hyperf\Support\make;
+use RuntimeException;
 
 class ThrottleHandler
 {
@@ -70,11 +69,12 @@ class ThrottleHandler
      * @throws ContainerExceptionInterface
      */
     public function execute(
-        int $limit = 60,
-        int $timer = 60,
+        int   $limit = 60,
+        int   $timer = 60,
         mixed $key = null,
         mixed $callback = null
-    ): void {
+    ): void
+    {
         // 获取Key
         $key = $this->getKey($key);
         // 限制频次
@@ -104,14 +104,17 @@ class ThrottleHandler
     public function getSignature(mixed $key): string
     {
         if (is_array($key)) {
-            return (string) call_user_func($key);
+            return (string)call_user_func($key);
         }
         return sha1($key . '_' . $this->getRealIp());
     }
 
     public function getRealIp(mixed $request = null): string
     {
-        $request = $request ?? Context::getOrSet(RequestInterface::class, make(RequestInterface::class));
+        $request = $request ?? Context::get(RequestInterface::class);
+        if (!$request) {
+            throw new RuntimeException('No request context');
+        }
         /** @var RequestInterface $request */
         return $request->getHeaderLine('X-Forwarded-For')
             ?: $request->getHeaderLine('X-Real-IP')
@@ -129,16 +132,14 @@ class ThrottleHandler
      *
      * @param string $key 计数器的 key
      * @param int $timer 指定时间（s）
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
      * @throws RedisException
      */
     public function frequency(string $key, int $timer): int
     {
-        if (! $this->redis->get($key)) {
+        if (!$this->redis->get($key)) {
             $this->redis->setex($key, $timer, 0);
         }
-        return (int) $this->redis->incr($key);
+        return (int)$this->redis->incr($key);
     }
 
     public function getTimer($timer)
@@ -191,7 +192,7 @@ class ThrottleHandler
             'X-RateLimit-Remaining' => $remain,  // 在指定时间段内剩下的请求次数
         ];
 
-        if (! is_null($retry)) {  // 只有当用户访问频次超过了最大频次之后才会返回以下两个返回头字段
+        if (!is_null($retry)) {  // 只有当用户访问频次超过了最大频次之后才会返回以下两个返回头字段
             $headers['X-RateLimit-Retry'] = $retry;  // 距离下次重试请求需要等待的时间（s）
             $headers['X-RateLimit-Reset'] = Carbon::now()->addSeconds($retry)->getTimestamp();  // 距离下次重试请求需要等待的时间戳（s）
         }
@@ -254,13 +255,11 @@ class ThrottleHandler
      * 计算距离允许下一次请求还有多少秒.
      *
      * @param string $key 计数器的 key
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
      * @throws RedisException
      */
     public function getTimeUntilNextRetry(string $key): int
     {
-        $timer = (int) $this->redis->get($this->getKeyTimer($key));
+        $timer = (int)$this->redis->get($this->getKeyTimer($key));
         return max(0, $timer - Carbon::now()->getTimestamp());
     }
 

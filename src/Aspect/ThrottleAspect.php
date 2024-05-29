@@ -27,11 +27,9 @@ use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use RedisException;
 
-use function Hyperf\Support\make;
-
 class ThrottleAspect extends AbstractAspect
 {
-    public array $annotations = [
+    public $annotations = [
         ThrottleAnnotation::class,
         ResubmitAnnotation::class,
         SmsMinuteDayAnnotation::class,
