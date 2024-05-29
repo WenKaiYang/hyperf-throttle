@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Exception;
 use Hyperf\Context\Context;
+use Hyperf\Contract\ConfigInterface;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\Redis\RedisFactory;
 use Hyperf\Redis\RedisProxy;
@@ -33,9 +34,9 @@ class ThrottleHandler
 
     private RedisProxy $redis;
 
-    public function __construct(RedisFactory $factory)
+    public function __construct(RedisFactory $factory, ConfigInterface $config)
     {
-        $this->redis = $factory->get('default');
+        $this->redis = $factory->get($config->get('throttle.redis', 'default'));
     }
 
     /**

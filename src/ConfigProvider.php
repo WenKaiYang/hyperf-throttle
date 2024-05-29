@@ -25,6 +25,14 @@ class ConfigProvider
             'aspects' => [
                 ThrottleAspect::class,
             ],
+            'publish' => [
+                [
+                    'id' => 'config',
+                    'description' => 'The config for throttle.',
+                    'source' => __DIR__ . '/../publish/throttle.php',
+                    'destination' => BASE_PATH . '/config/autoload/throttle.php',
+                ],
+            ],
         ];
     }
 }
