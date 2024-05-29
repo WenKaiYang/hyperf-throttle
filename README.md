@@ -1,7 +1,6 @@
 ## hyperf-throttle
 
-> 适配 [hyperf](https://hyperf.wiki/) 框架的请求频率限流器。功能类似于 [laravel](https://laravel.com/)
-> 框架的 [throttle](https://laravel.com/docs/7.x/middleware) 中间件。
+> 适配 [hyperf](https://hyperf.wiki/) 框架的请求频率限流器。
 
 ### 安装依赖
 
@@ -9,7 +8,13 @@
 composer require ella123/hyperf-throttle
 ```
 
-### 配置说明
+### 发布配置
+
+```shell
+php bin/hyperf.php vendor:publish ella123/hyperf-throttle
+```
+
+### 注解说明
 
 | 配置       | 默认值  | 说明             |
 |----------|------|----------------|
