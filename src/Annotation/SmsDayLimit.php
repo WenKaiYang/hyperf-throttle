@@ -29,7 +29,7 @@ class SmsDayLimit extends AbstractAnnotation implements ThrottleInterface
         public int $limit = 15,
         public int $timer = 86400,
         public mixed $key = [SmsLimitHandler::class, 'generateKey'],
-        public mixed $callback = [SmsLimitHandler::class, 'exceptionSmsDayCallback'],
+        public mixed $callback = [SmsLimitHandler::class, 'exceptionCallback', 'SMS day limit.'],
     ) {
     }
 }

@@ -16,13 +16,9 @@ use Carbon\Carbon;
 use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Exception;
 use Hyperf\Context\Context;
-use Hyperf\Contract\ConfigInterface;
 use Hyperf\HttpServer\Contract\RequestInterface;
-use Hyperf\Redis\RedisFactory;
+use Hyperf\HttpServer\Contract\ResponseInterface;
 use Hyperf\Redis\RedisProxy;
-use Psr\Container\ContainerExceptionInterface;
-use Psr\Container\NotFoundExceptionInterface;
-use Psr\Http\Message\ResponseInterface;
 use RedisException;
 
 use function Hyperf\Support\make;
@@ -33,16 +29,15 @@ class ThrottleHandler
 
     protected string $keySuffix = ':timer';
 
-    private RedisProxy $redis;
-
-    public function __construct(RedisFactory $factory, ConfigInterface $config)
-    {
-        $this->redis = $factory->get($config->get('throttle.redis', 'default'));
+    public function __construct(
+        protected RequestInterface $request,
+        protected ResponseInterface $response,
+        protected RedisProxy $redis
+    ) {
     }
 
     /**
      * 清空所有的限流器.
-     *
      * @throws RedisException
      */
     public function clear(): bool
@@ -66,18 +61,17 @@ class ThrottleHandler
     }
 
     /**
-     * @throws NotFoundExceptionInterface
      * @throws RedisException
-     * @throws ContainerExceptionInterface
      */
     public function execute(
+        string $place,
         int $limit = 60,
         int $timer = 60,
         mixed $key = null,
         mixed $callback = null
     ): void {
         // 获取Key
-        $key = $this->getKey($key);
+        $key = $this->getKey($place, $key);
         // 限制频次
         $limit = $this->getLimit(limit: $limit);
         // 当前频次
@@ -89,34 +83,32 @@ class ThrottleHandler
         }
     }
 
-    /**
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
-     */
-    public function getKey(mixed $key): string
+    public function getKey(string $place, mixed $key): string
     {
-        return $this->keyPrefix . $this->getSignature($key);
+        return $this->keyPrefix . $this->getSignature($place, $key);
     }
 
-    /**
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
-     */
-    public function getSignature(mixed $key): string
+    public function getSignature(string $place, mixed $key): string
     {
         if (is_array($key)) {
-            return (string) call_user_func($key);
+            return $place . '_' . $this->callback($key);
         }
-        return sha1($key . '_' . $this->getRealIp());
+        if (is_string($key)) {
+            $key = $this->getInputKey($key);
+        }
+        return sha1($place . '_' . $key . '_' . $this->getRealIp());
     }
 
-    public function getRealIp(mixed $request = null): string
+    public function getInputKey(string $key): string
     {
-        $request = $request ?? Context::getOrSet(RequestInterface::class, make(RequestInterface::class));
-        /** @var RequestInterface $request */
-        return $request->getHeaderLine('X-Forwarded-For')
-            ?: $request->getHeaderLine('X-Real-IP')
-                ?: ($request->getServerParams()['remote_addr'] ?? '')
+        return is_string($str = $this->request->input($key)) ? $str : $key;
+    }
+
+    public function getRealIp(): string
+    {
+        return $this->request->getHeaderLine('X-Forwarded-For')
+            ?: $this->request->getHeaderLine('X-Real-IP')
+                ?: ($this->request->getServerParams()['remote_addr'] ?? '')
                     ?: '127.0.0.1';
     }
 
@@ -130,8 +122,6 @@ class ThrottleHandler
      *
      * @param string $key 计数器的 key
      * @param int $timer 指定时间（s）
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
      * @throws RedisException
      */
     public function frequency(string $key, int $timer): int
@@ -220,22 +210,17 @@ class ThrottleHandler
      */
     public function addHeaders(array $headers = []): static
     {
-        $response = Context::get(ResponseInterface::class);
-
         foreach ($headers as $key => $header) {
-            $response = $response->withHeader($key, $header);
+            $this->response->withHeader($key, $header);
         }
 
-        Context::set(ResponseInterface::class, $response);
+        Context::set(ResponseInterface::class, $this->response);
 
         return $this;
     }
 
     /**
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
      * @throws RedisException
-     * @throws Exception
      */
     public function resolveTooManyAttempts(string $key, int $frequency, int $limit, mixed $callback): mixed
     {
@@ -245,18 +230,24 @@ class ThrottleHandler
         $this->setHeaders($frequency, $limit, $retry);
 
         if (is_array($callback)) {
-            return call_user_func($callback);
+            return $this->callback($callback);
         }
 
         throw $this->buildException(exception: $callback);
+    }
+
+    public function callback(array $callback)
+    {
+        $obj = make($callback[0]);
+        $method = $callback[1];
+        $params = count($callback) > 2 ? $callback[2] : [];
+        return call_user_func_array([$obj, $method], (array) $params);
     }
 
     /**
      * 计算距离允许下一次请求还有多少秒.
      *
      * @param string $key 计数器的 key
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
      * @throws RedisException
      */
     public function getTimeUntilNextRetry(string $key): int
@@ -276,7 +267,7 @@ class ThrottleHandler
     public function buildException(?string $exception = null): Exception
     {
         return $exception && class_exists($exception)
-            ? make($exception)
+            ? new $exception()
             : new ThrottleException();
     }
 }
