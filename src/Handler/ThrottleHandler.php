@@ -16,16 +16,13 @@ use Carbon\Carbon;
 use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Exception;
 use Hyperf\Context\Context;
-use Hyperf\Contract\ConfigInterface;
 use Hyperf\HttpServer\Contract\RequestInterface;
-use Hyperf\Redis\RedisFactory;
 use Hyperf\Redis\RedisProxy;
 use Hyperf\Utils\ApplicationContext;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use RedisException;
-use RuntimeException;
 
 class ThrottleHandler
 {
@@ -33,11 +30,12 @@ class ThrottleHandler
 
     protected string $keySuffix = ':timer';
 
-    private RedisProxy $redis;
 
-    public function __construct(RedisFactory $factory, ConfigInterface $config)
+    public function __construct(
+        protected RequestInterface $request,
+        protected RedisProxy       $redis
+    )
     {
-        $this->redis = $factory->get($config->get('throttle.redis', 'default'));
     }
 
     /**
@@ -72,11 +70,12 @@ class ThrottleHandler
      */
     public function execute(
         string $place,
-        int $limit = 60,
-        int $timer = 60,
-        mixed $key = null,
-        mixed $callback = null
-    ): void {
+        int    $limit = 60,
+        int    $timer = 60,
+        mixed  $key = null,
+        mixed  $callback = null
+    ): void
+    {
         // 获取Key
         $key = $this->getKey($place, $key);
         // 限制频次
@@ -106,7 +105,9 @@ class ThrottleHandler
     public function getSignature(string $place, mixed $key): string
     {
         if (is_array($key)) {
-            return $place . '_' . call_user_func($key);
+            $obj = make($key[0]);
+            $res = count($key) > 2 ? $obj->$key[1]($key[2] ?? null) : $obj->$key[1]();
+            return $place . '_' . $res;
         }
         if (is_string($key)) {
             $key = $this->getInputKey($key);
@@ -116,22 +117,14 @@ class ThrottleHandler
 
     public function getInputKey(string $key): string
     {
-        $request = Context::get(RequestInterface::class)
-            ?: ApplicationContext::getContainer()->get(RequestInterface::class);
-        return is_string($str = $request->input($key)) ? $str : $key;
+        return is_string($str = $this->request->input($key)) ? $str : $key;
     }
 
     public function getRealIp(): string
     {
-        $request = Context::get(RequestInterface::class)
-            ?: ApplicationContext::getContainer()->get(RequestInterface::class);
-        if (! $request) {
-            throw new RuntimeException('No request context');
-        }
-        /** @var RequestInterface $request */
-        return $request->getHeaderLine('X-Forwarded-For')
-            ?: $request->getHeaderLine('X-Real-IP')
-                ?: ($request->getServerParams()['remote_addr'] ?? '')
+        return $this->request->getHeaderLine('X-Forwarded-For')
+            ?: $this->request->getHeaderLine('X-Real-IP')
+                ?: ($this->request->getServerParams()['remote_addr'] ?? '')
                     ?: '127.0.0.1';
     }
 
@@ -149,10 +142,10 @@ class ThrottleHandler
      */
     public function frequency(string $key, int $timer): int
     {
-        if (! $this->redis->get($key)) {
+        if (!$this->redis->get($key)) {
             $this->redis->setex($key, $timer, 0);
         }
-        return (int) $this->redis->incr($key);
+        return (int)$this->redis->incr($key);
     }
 
     public function getTimer($timer)
@@ -205,7 +198,7 @@ class ThrottleHandler
             'X-RateLimit-Remaining' => $remain,  // 在指定时间段内剩下的请求次数
         ];
 
-        if (! is_null($retry)) {  // 只有当用户访问频次超过了最大频次之后才会返回以下两个返回头字段
+        if (!is_null($retry)) {  // 只有当用户访问频次超过了最大频次之后才会返回以下两个返回头字段
             $headers['X-RateLimit-Retry'] = $retry;  // 距离下次重试请求需要等待的时间（s）
             $headers['X-RateLimit-Reset'] = Carbon::now()->addSeconds($retry)->getTimestamp();  // 距离下次重试请求需要等待的时间戳（s）
         }
@@ -258,7 +251,10 @@ class ThrottleHandler
         $this->setHeaders($frequency, $limit, $retry);
 
         if (is_array($callback)) {
-            return call_user_func($callback);
+            $obj = make($callback[0]);
+            return count($callback) > 2
+                ? $obj->$callback[1]($callback[2])
+                : $obj->$callback[1]();
         }
 
         throw $this->buildException(exception: $callback);
@@ -272,7 +268,7 @@ class ThrottleHandler
      */
     public function getTimeUntilNextRetry(string $key): int
     {
-        $timer = (int) $this->redis->get($this->getKeyTimer($key));
+        $timer = (int)$this->redis->get($this->getKeyTimer($key));
         return max(0, $timer - Carbon::now()->getTimestamp());
     }
 

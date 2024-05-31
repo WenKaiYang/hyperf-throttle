@@ -23,23 +23,7 @@ class SmsLimitHandler
     /**
      * @throws SmsLimitException
      */
-    public static function exceptionSmsMinuteCallback(string $message = 'SMS minute limit.'): void
-    {
-        throw new SmsLimitException(message: $message);
-    }
-
-    /**
-     * @throws SmsLimitException
-     */
-    public static function exceptionSmsHourCallback(string $message = 'SMS hour limit.'): void
-    {
-        throw new SmsLimitException(message: $message);
-    }
-
-    /**
-     * @throws SmsLimitException
-     */
-    public static function exceptionSmsDayCallback(string $message = 'SMS day limit.'): void
+    public function exceptionCallback(string $message): void
     {
         throw new SmsLimitException(message: $message);
     }
@@ -47,16 +31,16 @@ class SmsLimitHandler
     /**
      * 生成 Key.
      */
-    public static function generateKey(): string
+    public function generateKey(): string
     {
         $request = Context::get(RequestInterface::class)
             ?: ApplicationContext::getContainer()->get(RequestInterface::class);
-        if (! $request) {
+        if (!$request) {
             throw new RuntimeException('No request context');
         }
-        return md5(string: (string) $request->input('phone')
-            ?: (string) $request->input('mobile')
-                ?: (string) $request->input('tell')
-                    ?: (string) json_encode($request->url()));
+        return md5(string: (string)$request->input('phone')
+            ?: (string)$request->input('mobile')
+                ?: (string)$request->input('tell')
+                    ?: (string)json_encode($request->url()));
     }
 }

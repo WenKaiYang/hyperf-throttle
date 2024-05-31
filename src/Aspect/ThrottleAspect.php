@@ -20,10 +20,15 @@ use Ella123\HyperfThrottle\Annotation\Throttle as ThrottleAnnotation;
 use Ella123\HyperfThrottle\Annotation\ThrottleInterface;
 use Ella123\HyperfThrottle\Exception\InvalidArgumentException;
 use Ella123\HyperfThrottle\Handler\ThrottleHandler;
+use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\Aop\AbstractAspect;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\Di\Exception\Exception;
+use Hyperf\HttpServer\Contract\RequestInterface;
+use Hyperf\Redis\RedisFactory;
+use Hyperf\Redis\RedisProxy;
 use Psr\Container\ContainerExceptionInterface;
+use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use RedisException;
 
@@ -36,6 +41,25 @@ class ThrottleAspect extends AbstractAspect
         SmsHourLimitAnnotation::class,
         SmsMinuteLimitAnnotation::class,
     ];
+    protected RedisProxy $redis;
+    /**
+     * @var RequestInterface|mixed
+     */
+    private RequestInterface $request;
+
+    /**
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     */
+    public function __construct(
+        ContainerInterface $container,
+        RedisFactory       $factory,
+        ConfigInterface    $config
+    )
+    {
+        $this->redis = $factory->get($config->get('throttle.redis', 'default'));
+        $this->request = $container->get(RequestInterface::class);
+    }
 
     /**
      * @throws InvalidArgumentException
@@ -49,7 +73,10 @@ class ThrottleAspect extends AbstractAspect
         $metadata = $proceedingJoinPoint->getAnnotationMetadata();
 
         /** @var ThrottleHandler $handler */
-        $handler = make(ThrottleHandler::class);
+        $handler = make(ThrottleHandler::class, [
+            $this->request,
+            $this->redis,
+        ]);
         $place = $proceedingJoinPoint->className;
         if ($metadata->class) {
             // class 上的注解

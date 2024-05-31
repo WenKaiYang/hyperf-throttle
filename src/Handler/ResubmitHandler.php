@@ -22,11 +22,11 @@ class ResubmitHandler
     /**
      * 生成 Key.
      */
-    public static function generateKey(): string
+    public function generateKey(): string
     {
         $request = Context::get(RequestInterface::class)
             ?: ApplicationContext::getContainer()->get(RequestInterface::class);
-        if (! $request) {
+        if (!$request) {
             throw new RuntimeException('No request context');
         }
         return md5(json_encode($request->post() + $request->query()));
