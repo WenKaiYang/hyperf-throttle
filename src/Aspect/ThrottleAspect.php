@@ -50,31 +50,33 @@ class ThrottleAspect extends AbstractAspect
 
         /** @var ThrottleHandler $handler */
         $handler = make(ThrottleHandler::class);
-        $key = $proceedingJoinPoint->className;
+        $place = $proceedingJoinPoint->className;
         if ($metadata->class) {
             // class 上的注解
             foreach ($metadata->class as $class => $annotation) {
                 if ($annotation instanceof ThrottleInterface) {
-                    $key .= '#' . $class;
+                    $place .= '#' . $class;
                     $handler->execute(
+                        place: $place,
                         limit: $annotation->limit,
                         timer: $annotation->timer,
-                        key: $annotation->key ?: $key,
+                        key: $annotation->key,
                         callback: $annotation->callback
                     );
                 }
             }
         }
         if ($metadata->method) {
-            $key .= '@' . $proceedingJoinPoint->methodName;
+            $place .= '@' . $proceedingJoinPoint->methodName;
             // method 上的注解
             foreach ($metadata->method as $class => $annotation) {
                 if ($annotation instanceof ThrottleInterface) {
-                    $key .= '#' . $class;
+                    $place .= '#' . $class;
                     $handler->execute(
+                        place: $place,
                         limit: $annotation->limit,
                         timer: $annotation->timer,
-                        key: $annotation->key ?: $key,
+                        key: $annotation->key,
                         callback: $annotation->callback
                     );
                 }

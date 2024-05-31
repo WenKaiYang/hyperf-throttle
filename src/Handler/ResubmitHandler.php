@@ -14,6 +14,7 @@ namespace Ella123\HyperfThrottle\Handler;
 
 use Hyperf\Context\Context;
 use Hyperf\HttpServer\Contract\RequestInterface;
+use Hyperf\Utils\ApplicationContext;
 use RuntimeException;
 
 class ResubmitHandler
@@ -23,8 +24,9 @@ class ResubmitHandler
      */
     public static function generateKey(): string
     {
-        $request = Context::get(RequestInterface::class);
-        if (! $request) {
+        $request = Context::get(RequestInterface::class)
+            ?: ApplicationContext::getContainer()->get(RequestInterface::class);
+        if (!$request) {
             throw new RuntimeException('No request context');
         }
         return md5(json_encode($request->post() + $request->query()));

@@ -20,6 +20,7 @@ use Hyperf\Contract\ConfigInterface;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\Redis\RedisFactory;
 use Hyperf\Redis\RedisProxy;
+use Hyperf\Utils\ApplicationContext;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -70,13 +71,15 @@ class ThrottleHandler
      * @throws ContainerExceptionInterface
      */
     public function execute(
-        int $limit = 60,
-        int $timer = 60,
-        mixed $key = null,
-        mixed $callback = null
-    ): void {
+        string $place,
+        int    $limit = 60,
+        int    $timer = 60,
+        mixed  $key = null,
+        mixed  $callback = null
+    ): void
+    {
         // 获取Key
-        $key = $this->getKey($key);
+        $key = $this->getKey($place, $key);
         // 限制频次
         $limit = $this->getLimit(limit: $limit);
         // 当前频次
@@ -92,27 +95,38 @@ class ThrottleHandler
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
-    public function getKey(mixed $key): string
+    public function getKey(string $place, mixed $key): string
     {
-        return $this->keyPrefix . $this->getSignature($key);
+        return $this->keyPrefix . $this->getSignature($place, $key);
     }
 
     /**
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
-    public function getSignature(mixed $key): string
+    public function getSignature(string $place, mixed $key): string
     {
         if (is_array($key)) {
-            return (string) call_user_func($key);
+            return $place . '_' . call_user_func($key);
         }
-        return sha1($key . '_' . $this->getRealIp());
+        if (is_string($key)) {
+            $key = $this->getInputKey($key);
+        }
+        return sha1($place . '_' . $key . '_' . $this->getRealIp());
     }
 
-    public function getRealIp(mixed $request = null): string
+    public function getInputKey(string $key): string
     {
-        $request = $request ?? Context::get(RequestInterface::class);
-        if (! $request) {
+        $request = Context::get(RequestInterface::class)
+            ?: ApplicationContext::getContainer()->get(RequestInterface::class);
+        return is_string($str = $request->input($key)) ? $str : $key;
+    }
+
+    public function getRealIp(): string
+    {
+        $request = Context::get(RequestInterface::class)
+            ?: ApplicationContext::getContainer()->get(RequestInterface::class);
+        if (!$request) {
             throw new RuntimeException('No request context');
         }
         /** @var RequestInterface $request */
@@ -136,10 +150,10 @@ class ThrottleHandler
      */
     public function frequency(string $key, int $timer): int
     {
-        if (! $this->redis->get($key)) {
+        if (!$this->redis->get($key)) {
             $this->redis->setex($key, $timer, 0);
         }
-        return (int) $this->redis->incr($key);
+        return (int)$this->redis->incr($key);
     }
 
     public function getTimer($timer)
@@ -192,7 +206,7 @@ class ThrottleHandler
             'X-RateLimit-Remaining' => $remain,  // 在指定时间段内剩下的请求次数
         ];
 
-        if (! is_null($retry)) {  // 只有当用户访问频次超过了最大频次之后才会返回以下两个返回头字段
+        if (!is_null($retry)) {  // 只有当用户访问频次超过了最大频次之后才会返回以下两个返回头字段
             $headers['X-RateLimit-Retry'] = $retry;  // 距离下次重试请求需要等待的时间（s）
             $headers['X-RateLimit-Reset'] = Carbon::now()->addSeconds($retry)->getTimestamp();  // 距离下次重试请求需要等待的时间戳（s）
         }
@@ -220,7 +234,7 @@ class ThrottleHandler
      */
     public function addHeaders(array $headers = []): static
     {
-        $response = Context::get(ResponseInterface::class);
+        $response = ApplicationContext::getContainer()->get(ResponseInterface::class);
 
         foreach ($headers as $key => $header) {
             $response = $response->withHeader($key, $header);
@@ -259,7 +273,7 @@ class ThrottleHandler
      */
     public function getTimeUntilNextRetry(string $key): int
     {
-        $timer = (int) $this->redis->get($this->getKeyTimer($key));
+        $timer = (int)$this->redis->get($this->getKeyTimer($key));
         return max(0, $timer - Carbon::now()->getTimestamp());
     }
 
@@ -274,7 +288,7 @@ class ThrottleHandler
     public function buildException(?string $exception = null): Exception
     {
         return $exception && class_exists($exception)
-            ? make($exception)
+            ? new $exception()
             : new ThrottleException();
     }
 }
