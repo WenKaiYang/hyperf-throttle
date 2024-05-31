@@ -26,7 +26,7 @@ class ResubmitHandler
     {
         $request = Context::get(RequestInterface::class)
             ?: ApplicationContext::getContainer()->get(RequestInterface::class);
-        if (!$request) {
+        if (! $request) {
             throw new RuntimeException('No request context');
         }
         return md5(json_encode($request->post() + $request->query()));

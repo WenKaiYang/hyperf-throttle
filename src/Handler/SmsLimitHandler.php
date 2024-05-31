@@ -51,12 +51,12 @@ class SmsLimitHandler
     {
         $request = Context::get(RequestInterface::class)
             ?: ApplicationContext::getContainer()->get(RequestInterface::class);
-        if (!$request) {
+        if (! $request) {
             throw new RuntimeException('No request context');
         }
-        return md5(string: (string)$request->input('phone')
-            ?: (string)$request->input('mobile')
-                ?: (string)$request->input('tell')
-                    ?: (string)json_encode($request->url()));
+        return md5(string: (string) $request->input('phone')
+            ?: (string) $request->input('mobile')
+                ?: (string) $request->input('tell')
+                    ?: (string) json_encode($request->url()));
     }
 }
