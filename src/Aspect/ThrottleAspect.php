@@ -25,6 +25,7 @@ use Hyperf\Di\Aop\AbstractAspect;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
 use Hyperf\Di\Exception\Exception;
 use Hyperf\HttpServer\Contract\RequestInterface;
+use Hyperf\HttpServer\Contract\ResponseInterface;
 use Hyperf\Redis\RedisFactory;
 use Hyperf\Redis\RedisProxy;
 use Psr\Container\ContainerExceptionInterface;
@@ -46,6 +47,10 @@ class ThrottleAspect extends AbstractAspect
      * @var RequestInterface|mixed
      */
     private RequestInterface $request;
+    /**
+     * @var ResponseInterface|mixed
+     */
+    private ResponseInterface $response;
 
     /**
      * @throws ContainerExceptionInterface
@@ -59,6 +64,7 @@ class ThrottleAspect extends AbstractAspect
     {
         $this->redis = $factory->get($config->get('throttle.redis', 'default'));
         $this->request = $container->get(RequestInterface::class);
+        $this->response = $container->get(ResponseInterface::class);
     }
 
     /**
@@ -75,6 +81,7 @@ class ThrottleAspect extends AbstractAspect
         /** @var ThrottleHandler $handler */
         $handler = make(ThrottleHandler::class, [
             $this->request,
+            $this->response,
             $this->redis,
         ]);
         $place = $proceedingJoinPoint->className;

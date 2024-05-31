@@ -17,11 +17,10 @@ use Ella123\HyperfThrottle\Exception\ThrottleException;
 use Exception;
 use Hyperf\Context\Context;
 use Hyperf\HttpServer\Contract\RequestInterface;
+use Hyperf\HttpServer\Contract\ResponseInterface;
 use Hyperf\Redis\RedisProxy;
-use Hyperf\Utils\ApplicationContext;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
-use Psr\Http\Message\ResponseInterface;
 use RedisException;
 
 class ThrottleHandler
@@ -32,8 +31,9 @@ class ThrottleHandler
 
 
     public function __construct(
-        protected RequestInterface $request,
-        protected RedisProxy       $redis
+        protected RequestInterface  $request,
+        protected ResponseInterface $response,
+        protected RedisProxy        $redis
     )
     {
     }
@@ -224,13 +224,11 @@ class ThrottleHandler
      */
     public function addHeaders(array $headers = []): static
     {
-        $response = ApplicationContext::getContainer()->get(ResponseInterface::class);
-
         foreach ($headers as $key => $header) {
-            $response = $response->withHeader($key, $header);
+            $this->response->withHeader($key, $header);
         }
 
-        Context::set(ResponseInterface::class, $response);
+        Context::set(ResponseInterface::class, $this->response);
 
         return $this;
     }
