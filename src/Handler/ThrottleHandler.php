@@ -105,9 +105,7 @@ class ThrottleHandler
     public function getSignature(string $place, mixed $key): string
     {
         if (is_array($key)) {
-            $obj = make($key[0]);
-            $res = count($key) > 2 ? $obj->$key[1]($key[2] ?? null) : $obj->$key[1]();
-            return $place . '_' . $res;
+            return $place . '_' . $this->callback($key);
         }
         if (is_string($key)) {
             $key = $this->getInputKey($key);
@@ -251,13 +249,18 @@ class ThrottleHandler
         $this->setHeaders($frequency, $limit, $retry);
 
         if (is_array($callback)) {
-            $obj = make($callback[0]);
-            return count($callback) > 2
-                ? $obj->$callback[1]($callback[2])
-                : $obj->$callback[1]();
+            return $this->callback($callback);
         }
 
         throw $this->buildException(exception: $callback);
+    }
+
+    public function callback(array $callback)
+    {
+        $obj = make($callback[0]);
+        $method = $callback[1];
+        $params = count($callback) > 2 ? $callback[2] : [];
+        return call_user_func_array([$obj, $method], (array)$params);
     }
 
     /**
